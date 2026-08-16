@@ -9,6 +9,7 @@ import {
 import { GardenMapHandle, GardenNetworkTab } from "./GardenNetworkTab";
 import { GardenProfileOverlay } from "./GardenProfileOverlay";
 import { ReportModal } from "./ReportModal";
+import { BrutalSelect } from "./BrutalSelect";
 
 type ExplorerGarden = Garden & { resilience: GardenResilienceScore };
 
@@ -177,6 +178,7 @@ export const GardenDataExplorer: React.FC<{
   const controlClass =
     "pointer-events-auto border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] font-[Inter,sans-serif] font-medium text-[18px] md:text-[20px] tracking-[-0.05em]";
   const creamControl = `${controlClass} bg-[#fbf7ff] text-[#3f3f3f]`;
+  const filterTrigger = "px-6 py-2 min-w-[180px]";
 
   const searchValue =
     profileOpen && previewGarden
@@ -233,91 +235,72 @@ export const GardenDataExplorer: React.FC<{
       >
         {!profileOpen && (
           <>
-            <div
-              className={`${creamControl} relative h-[50px] w-[114px] rounded-[10px] shrink-0`}
-            >
-              <img
-                src="/figma-map/zoom.svg"
-                alt=""
-                className="absolute inset-0 w-full h-full pointer-events-none"
-              />
+            <div className={`${creamControl} h-[50px] w-[114px] rounded-[15px] shrink-0 flex overflow-hidden`}>
               <button
                 type="button"
                 aria-label="Zoom in"
                 onClick={() => mapRef.current?.zoomIn()}
-                className="absolute left-0 top-0 h-full w-1/2"
-              />
+                className="flex-1 flex items-center justify-center hover:bg-[#ede8f7] active:bg-[#d8f6e7] transition-colors duration-[120ms]"
+              >
+                <svg viewBox="0 0 18 18" className="size-[18px]" fill="none" aria-hidden>
+                  <path d="M1 9h16M9 1v16" stroke="#3f3f3f" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <div className="w-0.5 self-stretch bg-[#3f3f3f]" />
               <button
                 type="button"
                 aria-label="Zoom out"
                 onClick={() => mapRef.current?.zoomOut()}
-                className="absolute right-0 top-0 h-full w-1/2"
-              />
+                className="flex-1 flex items-center justify-center hover:bg-[#ede8f7] active:bg-[#d8f6e7] transition-colors duration-[120ms]"
+              >
+                <svg viewBox="0 0 18 18" className="size-[18px]" fill="none" aria-hidden>
+                  <path d="M1 9h16" stroke="#3f3f3f" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
             </div>
 
             <button
               type="button"
               onClick={() => setReportOpen(true)}
-              className={`${creamControl} group rounded-[15px] px-6 py-2 min-w-[280px] text-center hover:bg-[#306a4e] hover:text-[#f5f5f5] transition-colors`}
+              className={`${creamControl} nb-press rounded-[15px] px-6 py-2 min-w-[280px] text-center`}
             >
-              <span className="group-hover:hidden">
-                Know Something We Don’t?
-              </span>
-              <span className="hidden group-hover:inline">Report</span>
+              Know Something We Don’t?
             </button>
 
-            <label
-              className={`${creamControl} rounded-[15px] px-6 py-2 flex items-center gap-4`}
-            >
-              <select
-                value={selectedResilience}
-                onChange={(e) => setSelectedResilience(e.target.value)}
-                className="bg-transparent appearance-none pr-2 font-normal focus:outline-none cursor-pointer"
-              >
-                <option value="All">Resilience Levels</option>
-                <option value="High Resilience">High Resilience</option>
-                <option value="Moderate Resilience">Moderate Resilience</option>
-                <option value="Vulnerable">Vulnerable</option>
-                <option value="Critical Vulnerability">
-                  Critical Vulnerability
-                </option>
-              </select>
-              <img
-                src="/figma-map/chevron.svg"
-                alt=""
-                className="w-[19px] h-[9px]"
-              />
-            </label>
+            <BrutalSelect
+              ariaLabel="Resilience levels"
+              value={selectedResilience}
+              onChange={setSelectedResilience}
+              className={`${filterTrigger} text-[18px] md:text-[20px] tracking-[-0.05em]`}
+              options={[
+                { value: "All", label: "Resilience Levels" },
+                { value: "High Resilience", label: "High Resilience" },
+                { value: "Moderate Resilience", label: "Moderate Resilience" },
+                { value: "Vulnerable", label: "Vulnerable" },
+                { value: "Critical Vulnerability", label: "Critical Vulnerability" },
+              ]}
+            />
 
-            <label
-              className={`${creamControl} rounded-[15px] px-6 py-2 flex items-center gap-4`}
-            >
-              <select
-                value={selectedBorough}
-                onChange={(e) => setSelectedBorough(e.target.value)}
-                className="bg-transparent appearance-none pr-2 font-normal focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Boroughs</option>
-                <option value="Manhattan">Manhattan</option>
-                <option value="Brooklyn">Brooklyn</option>
-                <option value="Queens">Queens</option>
-                <option value="Bronx">Bronx</option>
-                <option value="Staten Island">Staten Island</option>
-              </select>
-              <img
-                src="/figma-map/chevron.svg"
-                alt=""
-                className="w-[19px] h-[9px]"
-              />
-            </label>
+            <BrutalSelect
+              ariaLabel="Boroughs"
+              value={selectedBorough}
+              onChange={setSelectedBorough}
+              className={`${filterTrigger} text-[18px] md:text-[20px] tracking-[-0.05em]`}
+              options={[
+                { value: "All", label: "All Boroughs" },
+                { value: "Manhattan", label: "Manhattan" },
+                { value: "Brooklyn", label: "Brooklyn" },
+                { value: "Queens", label: "Queens" },
+                { value: "Bronx", label: "Bronx" },
+                { value: "Staten Island", label: "Staten Island" },
+              ]}
+            />
           </>
         )}
 
         <label
-          className={`${controlClass} group rounded-[15px] pl-8 pr-8 py-2 flex items-center gap-4 min-w-[280px] flex-1 max-w-[520px] ${
-            profileOpen
-              ? "bg-[#306a4e] text-[#f3f3f3]"
-              : "bg-[#fbf7ff] text-[#3f3f3f] hover:bg-[#306a4e] focus-within:bg-[#306a4e]"
+          className={`${controlClass} nb-press nb-bright rounded-[15px] pl-8 pr-8 py-2 flex items-center gap-4 min-w-[280px] flex-1 max-w-[520px] ${
+            profileOpen ? "bg-[#306a4e] text-[#f3f3f3]" : "bg-[#fbf7ff] text-[#3f3f3f]"
           }`}
         >
           <img
@@ -327,11 +310,7 @@ export const GardenDataExplorer: React.FC<{
                 : "/figma-map/search.svg"
             }
             alt=""
-            className={`size-6 shrink-0 ${
-              profileOpen
-                ? ""
-                : "group-hover:brightness-0 group-hover:invert group-focus-within:brightness-0 group-focus-within:invert"
-            }`}
+            className="size-6 shrink-0"
           />
           <input
             value={searchValue}
@@ -340,10 +319,10 @@ export const GardenDataExplorer: React.FC<{
               setSearchQuery(e.target.value);
             }}
             placeholder="Search gardens"
-            className={`bg-transparent w-full focus:outline-none font-normal placeholder:text-[#3f3f3f] ${
+            className={`bg-transparent w-full focus:outline-none font-normal ${
               profileOpen
                 ? "text-[#f3f3f3] placeholder:text-[#f3f3f3]"
-                : "group-hover:placeholder:text-[#f5f5f5] group-focus-within:placeholder:text-[#f5f5f5] group-hover:text-[#f5f5f5] group-focus-within:text-[#f5f5f5]"
+                : "placeholder:text-[#3f3f3f]"
             }`}
           />
         </label>

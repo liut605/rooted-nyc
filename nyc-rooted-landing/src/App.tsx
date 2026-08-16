@@ -182,10 +182,46 @@ const SUB_SIZE  = "clamp(1rem, 1.6vw, 1.4rem)";
 
 // ─── Slides ───────────────────────────────────────────────────────────────
 
-function Slide1() {
+function Slide1({ onSkip }: { onSkip?: () => void }) {
   return (
     <div className="w-full h-full flex flex-col justify-end px-16 pb-36 relative overflow-hidden">
       <CadastralBg />
+      <button
+        type="button"
+        className="absolute top-8 right-8 z-20 font-medium"
+        style={{
+          fontFamily: "Inter, sans-serif",
+          fontSize: "0.95rem",
+          color: "#14291E",
+          backgroundColor: "#F0E8D5",
+          border: "1.5px solid #3f3f3f",
+          borderRadius: "10px",
+          padding: "10px 22px",
+          cursor: "pointer",
+          letterSpacing: "-0.02em",
+          boxShadow: "4px 4px 0px #3f3f3f",
+          transition: "transform 0.12s ease, box-shadow 0.12s ease",
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.transform = "translate(-2px,-2px)";
+          e.currentTarget.style.boxShadow = "6px 6px 0px #3f3f3f";
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.transform = "";
+          e.currentTarget.style.boxShadow = "4px 4px 0px #3f3f3f";
+        }}
+        onMouseDown={e => {
+          e.currentTarget.style.transform = "translate(2px,2px)";
+          e.currentTarget.style.boxShadow = "2px 2px 0px #3f3f3f";
+        }}
+        onMouseUp={e => {
+          e.currentTarget.style.transform = "translate(-2px,-2px)";
+          e.currentTarget.style.boxShadow = "6px 6px 0px #3f3f3f";
+        }}
+        onClick={() => onSkip?.()}
+      >
+        Skip
+      </button>
       <div className="relative z-10 max-w-4xl">
         <div className="text-xs font-bold tracking-[0.22em] mb-8 uppercase"
           style={{ color: theme.accentText, fontFamily: "Inter, sans-serif" }}>
@@ -579,7 +615,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
     locked.current = false;
   }, [resetNonce]);
 
-  const slides = [<Slide1 />, <Slide2 />, <Slide3 />, <Slide4 />, <Slide5 />, <Slide6 onGetStarted={onGetStarted} />];
+  const slides = [<Slide1 onSkip={onGetStarted} />, <Slide2 />, <Slide3 />, <Slide4 />, <Slide5 />, <Slide6 onGetStarted={onGetStarted} />];
 
   return (
     <div className="w-full h-dvh overflow-hidden relative"

@@ -27,3 +27,27 @@
   height: 19px !important;
   opacity: 0.42;
 }
+
+.nb-press {
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease,
+    filter 120ms ease;
+}
+
+.nb-press:hover:not(:disabled):not(.is-pressed) {
+  transform: translate(1px, 1px);
+  box-shadow: 3px 3px 0 0 #3f3f3f !important;
+}
+
+.nb-press:active:not(:disabled),
+.nb-press.is-pressed {
+  transform: translate(4px, 4px);
+  box-shadow: none !important;
+}
+
+.nb-bright:hover {
+  filter: brightness(1.08);
+}

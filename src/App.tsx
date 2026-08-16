@@ -1,39 +1,61 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { GardenDataExplorer } from "./components/GardenDataExplorer";
-import { PublicActionCenter } from "./components/PublicActionCenter";
-import { LearnTab } from "./components/LearnTab";
 import LandingPage from "../nyc-rooted-landing/src/App.tsx";
 
 type Tab = "landing" | "explorer" | "actions" | "learn";
+
+const DEV_ONLY = new Set<Tab>(["learn", "actions"]);
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("landing");
   const [landingKey, setLandingKey] = useState(0);
   const [openGardenId, setOpenGardenId] = useState<string | null>(null);
-  const [learnReturn, setLearnReturn] = useState<{
-    sectionId: string;
-    label: string;
-  } | null>(null);
+  const [hoveredDev, setHoveredDev] = useState<Tab | null>(null);
+  const [devNoticeOpen, setDevNoticeOpen] = useState(false);
+
+  useEffect(() => {
+    if (!devNoticeOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDevNoticeOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [devNoticeOpen]);
 
   const navItem = (id: Tab, label: string) => {
     const active = activeTab === id;
+    const locked = DEV_ONLY.has(id);
     return (
-      <button
-        type="button"
-        onClick={() => {
-          if (id === "learn") setLearnReturn(null);
-          if (id === "explorer") setOpenGardenId(null);
-          if (id === "landing") setLandingKey((key) => key + 1);
-          setActiveTab(id);
-        }}
-        className={`px-4 py-2 rounded-[15px] font-medium text-[18px] md:text-[20px] tracking-[-0.05em] whitespace-nowrap transition-colors ${
-          active
-            ? "bg-[#306a4e] text-[#f3f3f3] shadow-[4px_4px_0_0_#3f3f3f]"
-            : "text-[#3f3f3f]"
-        }`}
+      <span
+        className="relative"
+        onMouseEnter={() => locked && setHoveredDev(id)}
+        onMouseLeave={() => setHoveredDev(null)}
       >
-        {label}
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (locked) {
+              setDevNoticeOpen(true);
+              return;
+            }
+            if (id === "explorer") setOpenGardenId(null);
+            if (id === "landing") setLandingKey((key) => key + 1);
+            setActiveTab(id);
+          }}
+          className={`px-4 py-2 rounded-[15px] font-medium text-[18px] md:text-[20px] tracking-[-0.05em] whitespace-nowrap transition-colors duration-[120ms] ${
+            active
+              ? "bg-[#306a4e] text-[#f3f3f3]"
+              : "text-[#3f3f3f] hover:bg-[#ede8f7] active:bg-[#d8f6e7]"
+          }`}
+        >
+          {label}
+        </button>
+        {hoveredDev === id && (
+          <span className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[15px] border-2 border-[#3f3f3f] bg-[#fbf7ff] px-3 py-1.5 font-medium text-[14px] tracking-[-0.03em] text-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f]">
+            Developer view only
+          </span>
+        )}
+      </span>
     );
   };
 
@@ -48,22 +70,8 @@ export default function App() {
           resetNonce={landingKey}
           onGetStarted={() => setActiveTab("explorer")}
         />
-      ) : activeTab === "explorer" ? (
-        <GardenDataExplorer openGardenId={openGardenId} />
       ) : (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-32">
-          {activeTab === "learn" && (
-            <LearnTab
-              focusSectionId={learnReturn?.sectionId}
-              onOpenGarden={(gardenId, sectionId, sectionLabel) => {
-                setLearnReturn({ sectionId, label: sectionLabel });
-                setOpenGardenId(gardenId);
-                setActiveTab("explorer");
-              }}
-            />
-          )}
-          {activeTab === "actions" && <PublicActionCenter />}
-        </main>
+        <GardenDataExplorer openGardenId={openGardenId} />
       )}
 
       {activeTab !== "landing" && (
@@ -73,6 +81,42 @@ export default function App() {
           {navItem("actions", "Act")}
           {navItem("landing", "About")}
         </nav>
+      )}
+
+      {devNoticeOpen && (
+        <div
+          className="fixed inset-0 z-[3000] flex items-center justify-center px-4 bg-[#3f3f3f]/40"
+          onClick={() => setDevNoticeOpen(false)}
+        >
+          <div
+            className="w-full max-w-[360px] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[20px] shadow-[6px_6px_0_0_#3f3f3f] overflow-hidden font-[Inter,sans-serif]"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dev-view-title"
+          >
+            <div className="bg-[#306a4e] px-5 py-3">
+              <h2
+                id="dev-view-title"
+                className="font-medium text-[#fbf7ff] text-[18px] tracking-[-0.05em]"
+              >
+                Developer view only
+              </h2>
+            </div>
+            <div className="px-5 py-5 flex flex-col items-center gap-4">
+              <p className="font-normal text-[16px] tracking-[-0.03em] text-[#3f3f3f] text-center">
+                Learn and Act are not part of the public app yet.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDevNoticeOpen(false)}
+                className="nb-press min-w-[120px] px-5 py-2 bg-[#306a4e] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] font-medium text-[#fbf7ff] text-[16px] tracking-[-0.03em]"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

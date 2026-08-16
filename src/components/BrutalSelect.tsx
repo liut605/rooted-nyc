@@ -79,21 +79,19 @@ export const BrutalSelect: React.FC<{
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left font-normal tracking-[-0.05em] transition-colors duration-[120ms] ${
                     isSelected
-                      ? 'bg-[#306a4e] text-[#fbf7ff]'
+                      ? 'bg-[#d8f6e7] text-[#3f3f3f]'
                       : 'text-[#3f3f3f] hover:bg-[#ede8f7] active:bg-[#d8f6e7]'
                   }`}
                 >
                   <span
-                    className={`size-[18px] shrink-0 rounded-full border-2 flex items-center justify-center ${
-                      isSelected ? 'border-[#fbf7ff]' : 'border-[#3f3f3f]'
-                    }`}
+                    className="size-[18px] shrink-0 rounded-full border-2 border-[#3f3f3f] flex items-center justify-center"
                     aria-hidden
                   >
                     {isSelected && (
                       <svg viewBox="0 0 16 16" className="size-3" fill="none">
                         <path
                           d="M3.2 8.2l3 3.1 6.6-6.8"
-                          stroke="currentColor"
+                          stroke="#306a4e"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
