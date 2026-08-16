@@ -11,6 +11,7 @@ import {
   GardenPlanOverlay,
   lotBoundsForGarden,
 } from "../data/gardenPlanOverlays";
+import { gardenShowsPhotoPin } from "../data/gardensWithVisuals";
 
 type EnrichedGarden = Garden & { resilience?: GardenResilienceScore };
 
@@ -37,12 +38,22 @@ export interface GardenNetworkTabProps {
   spotlightGarden?: EnrichedGarden | null;
 }
 
-const PIN_ICON = L.divIcon({
-  className: "garden-pin",
-  html: '<img src="/figma-map/pin.svg" alt="" width="13" height="25" />',
-  iconSize: [28, 36],
-  iconAnchor: [14, 36],
-});
+function pinIcon(hasVisuals: boolean) {
+  if (hasVisuals) {
+    return L.icon({
+      iconUrl: "/figma-map/pin.svg",
+      iconSize: [22, 42],
+      iconAnchor: [11, 42],
+      className: "garden-pin garden-pin--photo",
+    });
+  }
+  return L.icon({
+    iconUrl: "/figma-map/pin.svg",
+    iconSize: [10, 19],
+    iconAnchor: [5, 19],
+    className: "garden-pin garden-pin--plain",
+  });
+}
 
 export const GardenNetworkTab = forwardRef<
   GardenMapHandle,
@@ -229,9 +240,11 @@ export const GardenNetworkTab = forwardRef<
       gardens.forEach((garden) => {
         if (!garden.latitude || !garden.longitude) return;
         if (mapLocked) return;
+        const hasVisuals = gardenShowsPhotoPin(garden);
         const marker = L.marker([garden.latitude, garden.longitude], {
-          icon: PIN_ICON,
-          zIndexOffset: selectedGardenId === garden.id ? 500 : 0,
+          icon: pinIcon(hasVisuals),
+          zIndexOffset:
+            (hasVisuals ? 250 : 0) + (selectedGardenId === garden.id ? 500 : 0),
         });
 
         marker.on("mouseover", () => {

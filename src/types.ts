@@ -85,6 +85,8 @@ export interface Garden {
   curatedSources?: { label: string; url: string; asOf: string }[];
   curatedFields?: string[];
   curatedEvidence?: Partial<CategoryEvidence>;
+  /** True when Wikimedia/NYPL/local photos are available for this garden. */
+  hasVisuals?: boolean;
 }
 
 export interface ScoreBreakdown {
@@ -146,6 +148,7 @@ export interface CrowdsourcedReport {
   id: string;
   gardenId: string;
   timestamp: string;
+  reporterName?: string;
   reporterRole: 'Garden Steward' | 'Neighbor' | 'Community Board Member' | 'Volunteer' | 'Concerned Citizen';
   threatCategory: 
     | 'Site Visit / Surveyors Seen'

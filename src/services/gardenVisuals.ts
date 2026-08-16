@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { GardenVisual } from '../types';
+import generatedCatalogFile from '../data/gardenVisuals.generated.json';
 
 const GENERATED_PATH = path.resolve(process.cwd(), 'src/data/gardenVisuals.generated.json');
 const LOCAL_DIR = path.resolve(process.cwd(), 'public/garden-visuals');
@@ -11,14 +12,41 @@ interface GeneratedCatalog {
   byGardenId?: Record<string, GardenVisual[]>;
 }
 
+let catalogCache: Record<string, GardenVisual[]> | null = null;
+let visualIdCache: Set<string> | null = null;
+
 function loadGeneratedCatalog(): Record<string, GardenVisual[]> {
+  if (catalogCache) return catalogCache;
   try {
     const raw = fs.readFileSync(GENERATED_PATH, 'utf8');
     const parsed = JSON.parse(raw) as GeneratedCatalog;
-    return parsed.byGardenId || {};
+    catalogCache = parsed.byGardenId || {};
   } catch {
-    return {};
+    catalogCache = (generatedCatalogFile as GeneratedCatalog).byGardenId || {};
   }
+  return catalogCache;
+}
+
+function idsWithVisuals(): Set<string> {
+  if (visualIdCache) return visualIdCache;
+  const ids = new Set<string>();
+  const catalog = loadGeneratedCatalog();
+  for (const [id, visuals] of Object.entries(catalog)) {
+    if (visuals.length > 0) ids.add(id);
+  }
+  ids.add('MGT056');
+  if (fs.existsSync(LOCAL_DIR)) {
+    for (const name of fs.readdirSync(LOCAL_DIR)) {
+      if (loadLocalVisuals(name).length > 0) ids.add(name);
+    }
+  }
+  visualIdCache = ids;
+  return ids;
+}
+
+export function gardenHasVisuals(gardenId: string, altIds: string[] = []): boolean {
+  const ids = idsWithVisuals();
+  return [gardenId, ...altIds].some((id) => ids.has(id));
 }
 
 function loadLocalVisuals(gardenId: string): GardenVisual[] {

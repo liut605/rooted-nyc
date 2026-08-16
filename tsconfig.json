@@ -21,8 +21,10 @@
       ]
     },
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "noEmit": true
   },
-  "include": ["src", "server.ts", "scripts", "nyc-rooted-landing/src"],
+  "include": ["src", "server.ts", "scripts", "nyc-rooted-landing/src", "api"],
   "exclude": ["node_modules", "dist"]
 }

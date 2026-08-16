@@ -1,35 +1,47 @@
-import React, { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import { Garden, GardenResilienceScore, GardenVisual, ResilienceLevel } from '../types';
-import { GardenMapHandle, GardenNetworkTab } from './GardenNetworkTab';
-import { GardenProfileOverlay } from './GardenProfileOverlay';
+import React, { useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import {
+  Garden,
+  GardenResilienceScore,
+  GardenVisual,
+  ResilienceLevel,
+} from "../types";
+import { GardenMapHandle, GardenNetworkTab } from "./GardenNetworkTab";
+import { GardenProfileOverlay } from "./GardenProfileOverlay";
+import { ReportModal } from "./ReportModal";
 
 type ExplorerGarden = Garden & { resilience: GardenResilienceScore };
 
 function gardenSearchLabel(garden: ExplorerGarden): string {
-  const zip = garden.zipCode ? `, ${garden.zipCode}` : '';
+  const zip = garden.zipCode ? `, ${garden.zipCode}` : "";
   return `${garden.name}, New York, NY${zip}`;
 }
 
 export const GardenDataExplorer: React.FC<{
   openGardenId?: string | null;
-  onOpenReport?: () => void;
-}> = ({ openGardenId, onOpenReport }) => {
+}> = ({ openGardenId }) => {
   const mapRef = useRef<GardenMapHandle>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [gardens, setGardens] = useState<ExplorerGarden[]>([]);
-  const [selectedBorough, setSelectedBorough] = useState('All');
-  const [selectedResilience, setSelectedResilience] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [previewGarden, setPreviewGarden] = useState<ExplorerGarden | null>(null);
-  const [hoveredGarden, setHoveredGarden] = useState<ExplorerGarden | null>(null);
+  const [selectedBorough, setSelectedBorough] = useState("All");
+  const [selectedResilience, setSelectedResilience] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [previewGarden, setPreviewGarden] = useState<ExplorerGarden | null>(
+    null,
+  );
+  const [hoveredGarden, setHoveredGarden] = useState<ExplorerGarden | null>(
+    null,
+  );
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVisuals, setPreviewVisuals] = useState<GardenVisual[]>([]);
-  const [cardPoint, setCardPoint] = useState<{ x: number; y: number } | null>(null);
+  const [cardPoint, setCardPoint] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [mapReady, setMapReady] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const cardGarden = profileOpen ? null : hoveredGarden ?? previewGarden;
+  const [reportOpen, setReportOpen] = useState(false);
+  const cardGarden = profileOpen ? null : (hoveredGarden ?? previewGarden);
 
   const clearHoverHideTimer = () => {
     if (hoverHideTimer.current) {
@@ -42,20 +54,28 @@ export const GardenDataExplorer: React.FC<{
 
   useEffect(() => {
     const params = new URLSearchParams();
-    if (selectedBorough !== 'All') params.append('borough', selectedBorough);
-    if (selectedResilience !== 'All') params.append('resilienceLevel', selectedResilience);
-    if (searchQuery) params.append('search', searchQuery);
-    params.append('limit', '2000');
+    if (selectedBorough !== "All") params.append("borough", selectedBorough);
+    if (selectedResilience !== "All")
+      params.append("resilienceLevel", selectedResilience);
+    if (searchQuery) params.append("search", searchQuery);
+    params.append("limit", "2000");
 
     fetch(`/api/gardens?${params.toString()}`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Gardens API ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => setGardens(data.gardens || []))
-      .catch((err) => console.error('Failed to fetch gardens:', err));
+      .catch((err) => console.error("Failed to fetch gardens:", err));
   }, [selectedBorough, selectedResilience, searchQuery]);
 
   useEffect(() => {
     if (!openGardenId) return;
-    const found = gardens.find((garden) => garden.id === openGardenId || garden.bbl === openGardenId);
+    const found = gardens.find(
+      (garden) => garden.id === openGardenId || garden.bbl === openGardenId,
+    );
     if (found) {
       setPreviewGarden(found);
       setProfileOpen(false);
@@ -71,7 +91,7 @@ export const GardenDataExplorer: React.FC<{
           mapRef.current?.flyToGarden(garden, 16);
         }
       })
-      .catch((err) => console.error('Failed to open garden from Learn:', err));
+      .catch((err) => console.error("Failed to open garden from Learn:", err));
   }, [openGardenId, gardens]);
 
   useEffect(() => {
@@ -83,8 +103,9 @@ export const GardenDataExplorer: React.FC<{
     }
     let cancelled = false;
     const fallback =
-      visualGarden.id === 'MGT056' || /elizabeth\s+street/i.test(visualGarden.name)
-        ? '/figma-map/esg-header.png'
+      visualGarden.id === "MGT056" ||
+      /elizabeth\s+street/i.test(visualGarden.name)
+        ? "/figma-map/esg-header.png"
         : null;
 
     fetch(`/api/gardens/${encodeURIComponent(visualGarden.id)}/visuals`)
@@ -106,7 +127,13 @@ export const GardenDataExplorer: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [profileOpen, hoveredGarden?.id, hoveredGarden?.name, previewGarden?.id, previewGarden?.name]);
+  }, [
+    profileOpen,
+    hoveredGarden?.id,
+    hoveredGarden?.name,
+    previewGarden?.id,
+    previewGarden?.name,
+  ]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -117,20 +144,24 @@ export const GardenDataExplorer: React.FC<{
     }
 
     const update = () => {
-      const point = map.latLngToContainerPoint([garden.latitude, garden.longitude]);
+      const point = map.latLngToContainerPoint([
+        garden.latitude,
+        garden.longitude,
+      ]);
       setCardPoint({ x: point.x, y: point.y });
     };
 
     update();
-    map.on('move zoom moveend zoomend', update);
+    map.on("move zoom moveend zoomend", update);
     return () => {
-      map.off('move zoom moveend zoomend', update);
+      map.off("move zoom moveend zoomend", update);
     };
   }, [cardGarden, mapReady, profileOpen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== "Escape") return;
+      if (reportOpen) return;
       if (profileOpen) {
         setProfileOpen(false);
         if (previewGarden) mapRef.current?.flyToGarden(previewGarden, 16);
@@ -139,15 +170,18 @@ export const GardenDataExplorer: React.FC<{
       setPreviewGarden(null);
       setHoveredGarden(null);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [profileOpen, previewGarden]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [profileOpen, previewGarden, reportOpen]);
 
   const controlClass =
-    'pointer-events-auto border border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] font-[Inter,sans-serif] text-[18px] md:text-[20px] tracking-[-0.05em]';
+    "pointer-events-auto border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] font-[Inter,sans-serif] font-medium text-[18px] md:text-[20px] tracking-[-0.05em]";
   const creamControl = `${controlClass} bg-[#fbf7ff] text-[#3f3f3f]`;
 
-  const searchValue = profileOpen && previewGarden ? gardenSearchLabel(previewGarden) : searchQuery;
+  const searchValue =
+    profileOpen && previewGarden
+      ? gardenSearchLabel(previewGarden)
+      : searchQuery;
 
   return (
     <div className="relative w-full h-full min-h-screen overflow-hidden bg-[#e8e8e8] font-[Inter,sans-serif]">
@@ -194,13 +228,19 @@ export const GardenDataExplorer: React.FC<{
 
       <div
         className={`absolute top-6 left-6 right-6 z-[1100] flex flex-wrap items-center gap-3 pointer-events-none ${
-          profileOpen ? 'justify-end' : 'justify-between'
+          profileOpen ? "justify-end" : "justify-between"
         }`}
       >
         {!profileOpen && (
           <>
-            <div className={`${creamControl} relative h-[50px] w-[114px] rounded-[10px] shrink-0`}>
-              <img src="/figma-map/zoom.svg" alt="" className="absolute inset-0 w-full h-full pointer-events-none" />
+            <div
+              className={`${creamControl} relative h-[50px] w-[114px] rounded-[10px] shrink-0`}
+            >
+              <img
+                src="/figma-map/zoom.svg"
+                alt=""
+                className="absolute inset-0 w-full h-full pointer-events-none"
+              />
               <button
                 type="button"
                 aria-label="Zoom in"
@@ -217,33 +257,45 @@ export const GardenDataExplorer: React.FC<{
 
             <button
               type="button"
-              onClick={onOpenReport}
-              className={`${creamControl} group rounded-[10px] px-6 py-2 min-w-[280px] text-center hover:bg-[#306a4e] hover:text-[#f5f5f5] transition-colors`}
+              onClick={() => setReportOpen(true)}
+              className={`${creamControl} group rounded-[15px] px-6 py-2 min-w-[280px] text-center hover:bg-[#306a4e] hover:text-[#f5f5f5] transition-colors`}
             >
-              <span className="group-hover:hidden">Know Something We Don’t?</span>
+              <span className="group-hover:hidden">
+                Know Something We Don’t?
+              </span>
               <span className="hidden group-hover:inline">Report</span>
             </button>
 
-            <label className={`${creamControl} rounded-[15px] px-6 py-2 flex items-center gap-4`}>
+            <label
+              className={`${creamControl} rounded-[15px] px-6 py-2 flex items-center gap-4`}
+            >
               <select
                 value={selectedResilience}
                 onChange={(e) => setSelectedResilience(e.target.value)}
-                className="bg-transparent appearance-none pr-2 focus:outline-none cursor-pointer"
+                className="bg-transparent appearance-none pr-2 font-normal focus:outline-none cursor-pointer"
               >
                 <option value="All">Resilience Levels</option>
                 <option value="High Resilience">High Resilience</option>
                 <option value="Moderate Resilience">Moderate Resilience</option>
                 <option value="Vulnerable">Vulnerable</option>
-                <option value="Critical Vulnerability">Critical Vulnerability</option>
+                <option value="Critical Vulnerability">
+                  Critical Vulnerability
+                </option>
               </select>
-              <img src="/figma-map/chevron.svg" alt="" className="w-[19px] h-[9px]" />
+              <img
+                src="/figma-map/chevron.svg"
+                alt=""
+                className="w-[19px] h-[9px]"
+              />
             </label>
 
-            <label className={`${creamControl} rounded-[15px] px-6 py-2 flex items-center gap-4`}>
+            <label
+              className={`${creamControl} rounded-[15px] px-6 py-2 flex items-center gap-4`}
+            >
               <select
                 value={selectedBorough}
                 onChange={(e) => setSelectedBorough(e.target.value)}
-                className="bg-transparent appearance-none pr-2 focus:outline-none cursor-pointer"
+                className="bg-transparent appearance-none pr-2 font-normal focus:outline-none cursor-pointer"
               >
                 <option value="All">All Boroughs</option>
                 <option value="Manhattan">Manhattan</option>
@@ -252,7 +304,11 @@ export const GardenDataExplorer: React.FC<{
                 <option value="Bronx">Bronx</option>
                 <option value="Staten Island">Staten Island</option>
               </select>
-              <img src="/figma-map/chevron.svg" alt="" className="w-[19px] h-[9px]" />
+              <img
+                src="/figma-map/chevron.svg"
+                alt=""
+                className="w-[19px] h-[9px]"
+              />
             </label>
           </>
         )}
@@ -260,15 +316,21 @@ export const GardenDataExplorer: React.FC<{
         <label
           className={`${controlClass} group rounded-[15px] pl-8 pr-8 py-2 flex items-center gap-4 min-w-[280px] flex-1 max-w-[520px] ${
             profileOpen
-              ? 'bg-[#306a4e] text-[#f3f3f3]'
-              : 'bg-[#fbf7ff] text-[#3f3f3f] hover:bg-[#306a4e] focus-within:bg-[#306a4e]'
+              ? "bg-[#306a4e] text-[#f3f3f3]"
+              : "bg-[#fbf7ff] text-[#3f3f3f] hover:bg-[#306a4e] focus-within:bg-[#306a4e]"
           }`}
         >
           <img
-            src={profileOpen ? '/figma-profile/search-light.svg' : '/figma-map/search.svg'}
+            src={
+              profileOpen
+                ? "/figma-profile/search-light.svg"
+                : "/figma-map/search.svg"
+            }
             alt=""
             className={`size-6 shrink-0 ${
-              profileOpen ? '' : 'group-hover:brightness-0 group-hover:invert group-focus-within:brightness-0 group-focus-within:invert'
+              profileOpen
+                ? ""
+                : "group-hover:brightness-0 group-hover:invert group-focus-within:brightness-0 group-focus-within:invert"
             }`}
           />
           <input
@@ -278,10 +340,10 @@ export const GardenDataExplorer: React.FC<{
               setSearchQuery(e.target.value);
             }}
             placeholder="Search gardens"
-            className={`bg-transparent w-full focus:outline-none placeholder:text-[#3f3f3f] ${
+            className={`bg-transparent w-full focus:outline-none font-normal placeholder:text-[#3f3f3f] ${
               profileOpen
-                ? 'text-[#f3f3f3] placeholder:text-[#f3f3f3]'
-                : 'group-hover:placeholder:text-[#f5f5f5] group-focus-within:placeholder:text-[#f5f5f5] group-hover:text-[#f5f5f5] group-focus-within:text-[#f5f5f5]'
+                ? "text-[#f3f3f3] placeholder:text-[#f3f3f3]"
+                : "group-hover:placeholder:text-[#f5f5f5] group-focus-within:placeholder:text-[#f5f5f5] group-hover:text-[#f5f5f5] group-focus-within:text-[#f5f5f5]"
             }`}
           />
         </label>
@@ -305,7 +367,7 @@ export const GardenDataExplorer: React.FC<{
             setHoveredGarden(null);
             setPreviewGarden(cardGarden);
             setProfileOpen(true);
-            mapRef.current?.flyToGarden(cardGarden, 20, 'profile');
+            mapRef.current?.flyToGarden(cardGarden, 20, "profile");
           }}
         />
       )}
@@ -317,15 +379,22 @@ export const GardenDataExplorer: React.FC<{
           map={mapInstanceRef.current}
         />
       )}
+
+      <ReportModal
+        open={reportOpen}
+        gardens={gardens}
+        initialGardenId={previewGarden?.id}
+        onClose={() => setReportOpen(false)}
+      />
     </div>
   );
 };
 
 function sashLabel(level: ResilienceLevel): string {
-  if (level === 'High Resilience') return 'High';
-  if (level === 'Moderate Resilience') return 'Moderate';
-  if (level === 'Critical Vulnerability') return 'Critical';
-  return 'Vulnerable';
+  if (level === "High Resilience") return "High";
+  if (level === "Moderate Resilience") return "Moderate";
+  if (level === "Critical Vulnerability") return "Critical";
+  return "Vulnerable";
 }
 
 function GardenThumbnailCard({
@@ -335,7 +404,7 @@ function GardenThumbnailCard({
   y,
   onLearnMore,
   onMouseEnter,
-  onMouseLeave
+  onMouseLeave,
 }: {
   garden: ExplorerGarden;
   imageUrl: string | null;
@@ -356,20 +425,30 @@ function GardenThumbnailCard({
     >
       <div className="relative h-[119px] w-full overflow-hidden rounded-[12px] border border-[#3f3f3f]">
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="absolute inset-0 size-full object-cover" />
+          <img
+            src={imageUrl}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+          />
         ) : (
           <div className="absolute inset-0 bg-[#254f3a]" />
         )}
         <div className="absolute top-[22px] -right-[36px] w-[246px] rotate-[28deg] bg-[#b32d2d] py-1.5 text-center shadow-[0_4px_2px_rgba(0,0,0,0.4)]">
-          <p className="text-[#f5f5f5] text-[15px] tracking-[-0.05em] whitespace-nowrap">{sashLabel(level)}</p>
+          <p className="text-[#f5f5f5] text-[15px] tracking-[-0.05em] whitespace-nowrap">
+            {sashLabel(level)}
+          </p>
         </div>
       </div>
 
       <div className="flex flex-col gap-2 text-[#f5f5f5]">
         <div className="flex items-center gap-2">
-          <p className="text-[20px] tracking-[-0.05em] leading-tight flex-1">{garden.name}</p>
+          <p className="text-[20px] tracking-[-0.05em] leading-tight flex-1">
+            {garden.name}
+          </p>
           <div className="bg-[#b32d2d] border border-[#f5f5f5] rounded-full min-w-[32px] h-8 px-1 flex items-center justify-center shrink-0">
-            <span className="text-[15px] tracking-[-0.03em]">{garden.resilience.score}</span>
+            <span className="text-[15px] tracking-[-0.03em]">
+              {garden.resilience.score}
+            </span>
           </div>
         </div>
         <p className="text-[12px] tracking-[-0.05em]">

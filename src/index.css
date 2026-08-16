@@ -10,14 +10,20 @@
   bottom: 88px;
 }
 
-.leaflet-div-icon.garden-pin {
-  background: transparent;
-  border: none;
+.leaflet-marker-icon.garden-pin {
+  background: transparent !important;
+  border: none !important;
+  max-width: none !important;
 }
 
-.leaflet-div-icon.garden-pin img {
-  display: block;
-  margin: 0 auto;
-  width: 13px;
-  height: 25px;
+.leaflet-marker-icon.garden-pin--photo {
+  width: 22px !important;
+  height: 42px !important;
+  opacity: 1;
+}
+
+.leaflet-marker-icon.garden-pin--plain {
+  width: 10px !important;
+  height: 19px !important;
+  opacity: 0.42;
 }
