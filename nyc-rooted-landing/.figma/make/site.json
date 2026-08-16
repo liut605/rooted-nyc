@@ -1,0 +1,10 @@
+{
+  "description": "Engage with a vibrant community platform that promotes local gardening initiatives, fosters neighborhood connections, and encourages environmental stewardship.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

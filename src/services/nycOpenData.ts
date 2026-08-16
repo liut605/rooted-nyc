@@ -35,7 +35,7 @@ export class NycOpenDataService {
     this.lastSyncTime = new Date().toISOString();
   }
 
-  public async fetchLiveGardens(): Promise<Garden[]> {
+  public async fetchLiveGardens(options?: { skipMapPluto?: boolean }): Promise<Garden[]> {
     try {
       console.log('Fetching live NYC Open Data community gardens dataset (p78i-pat6)...');
       
@@ -144,7 +144,9 @@ export class NycOpenDataService {
         };
       });
 
-      const enrichedGardens = await enrichGardensWithMapPluto(mappedGardens);
+      const enrichedGardens = options?.skipMapPluto
+        ? mappedGardens
+        : await enrichGardensWithMapPluto(mappedGardens);
 
       // Seed rows first, then live Open Data, then hand-verified overlays for priority gardens.
       this.gardensCache = applyCuratedOverrides(mergeGardens(SEED_GARDENS, enrichedGardens));

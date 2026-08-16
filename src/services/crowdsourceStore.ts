@@ -45,7 +45,9 @@ export class CrowdsourceStore {
   private reports: CrowdsourcedReport[] = [];
 
   constructor() {
-    this.ensureDirectoryAndFile();
+    if (!process.env.VERCEL) {
+      this.ensureDirectoryAndFile();
+    }
     this.loadReports();
   }
 
@@ -63,6 +65,10 @@ export class CrowdsourceStore {
   }
 
   private loadReports() {
+    if (process.env.VERCEL) {
+      this.reports = [...INITIAL_REPORTS];
+      return;
+    }
     try {
       if (fs.existsSync(FILE_PATH)) {
         const raw = fs.readFileSync(FILE_PATH, 'utf-8').trim();
@@ -83,6 +89,7 @@ export class CrowdsourceStore {
   }
 
   private saveReports() {
+    if (process.env.VERCEL) return;
     try {
       fs.writeFileSync(FILE_PATH, JSON.stringify(this.reports, null, 2), 'utf-8');
     } catch (err) {

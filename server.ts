@@ -11,7 +11,7 @@ import { Borough, Jurisdiction, ResilienceLevel, SummaryStats } from './src/type
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-async function startServer() {
+export async function createApp() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
@@ -22,9 +22,12 @@ async function startServer() {
   const crowdsourceStore = new CrowdsourceStore();
 
   // Listen with seed data first; Open Data + MapPLUTO can take minutes.
-  void openDataService.fetchLiveGardens().catch((err) => {
-    console.warn('Initial NYC Open Data sync warning:', err);
-  });
+  // Vercel Hobby times out if we wait on MapPLUTO, so skip it there.
+  void openDataService
+    .fetchLiveGardens({ skipMapPluto: Boolean(process.env.VERCEL) })
+    .catch((err) => {
+      console.warn('Initial NYC Open Data sync warning:', err);
+    });
 
   // -------------------------------------------------------------
   // REST API ENDPOINTS
@@ -304,13 +307,13 @@ async function startServer() {
   // -------------------------------------------------------------
   // VITE / STATIC MIDDLEWARE
   // -------------------------------------------------------------
-  if (process.env.NODE_ENV !== 'production') {
+  if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa'
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req: Request, res: Response) => {
@@ -318,9 +321,12 @@ async function startServer() {
     });
   }
 
+  return { app, PORT };
+}
+
+if (!process.env.VERCEL) {
+  const { app, PORT } = await createApp();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`NYC Community Gardens Resilience Index API running on http://0.0.0.0:${PORT}`);
   });
 }
-
-startServer();
