@@ -24,7 +24,7 @@ export default function App() {
           if (id === 'landing') setLandingKey((key) => key + 1);
           setActiveTab(id);
         }}
-        className={`px-4 py-2 rounded-[15px] text-[22px] md:text-[25px] font-medium whitespace-nowrap transition-colors ${
+        className={`px-4 py-2 rounded-[15px] text-[18px] md:text-[20px] tracking-[-0.05em] whitespace-nowrap transition-colors ${
           active ? 'bg-[#306a4e] text-[#f3f3f3] shadow-[4px_4px_0_0_#3f3f3f]' : 'text-[#3f3f3f]'
         }`}
       >
@@ -66,12 +66,14 @@ export default function App() {
         </main>
       )}
 
-      <nav className="fixed bottom-6 left-6 z-[2000] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] flex items-center gap-8 md:gap-12 px-2 py-1">
-        {navItem('explorer', 'Explore')}
-        {navItem('learn', 'Learn')}
-        {navItem('actions', 'Act')}
-        {navItem('landing', 'About')}
-      </nav>
+      {activeTab !== 'landing' && (
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] flex items-center gap-8 md:gap-12 px-2 py-1 font-[Inter,sans-serif]">
+          {navItem('explorer', 'Explore')}
+          {navItem('learn', 'Learn')}
+          {navItem('actions', 'Act')}
+          {navItem('landing', 'About')}
+        </nav>
+      )}
     </div>
   );
 }

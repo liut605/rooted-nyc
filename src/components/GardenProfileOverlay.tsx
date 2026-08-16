@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import L from 'leaflet';
+import React, { useEffect, useMemo, useState } from "react";
+import L from "leaflet";
 import {
   CategoryEvidence,
   EvidenceBullet,
@@ -8,18 +8,27 @@ import {
   GardenVisual,
   PublicAction,
   RecommendedAction,
-  ScoreBreakdown
-} from '../types';
-import { isElizabethStreetGarden, lotBoundsForGarden } from '../data/gardenPlanOverlays';
+  ScoreBreakdown,
+} from "../types";
+import {
+  isElizabethStreetGarden,
+  lotBoundsForGarden,
+} from "../data/gardenPlanOverlays";
 
 type ExplorerGarden = Garden & { resilience: GardenResilienceScore };
 
-type ScoreCardId = 'policy' | 'dev' | 'land' | 'community';
+type ScoreCardId = "policy" | "dev" | "land" | "community";
 
 type Lightbox =
-  | { kind: 'image'; url: string; alt: string }
-  | { kind: 'score' }
-  | { kind: 'note'; tone: 'learn' | 'action'; title: string; body: string; detail?: string };
+  | { kind: "image"; url: string; alt: string }
+  | { kind: "score" }
+  | {
+      kind: "note";
+      tone: "learn" | "action";
+      title: string;
+      body: string;
+      detail?: string;
+    };
 
 interface ScoreCardSpec {
   id: ScoreCardId;
@@ -27,60 +36,69 @@ interface ScoreCardSpec {
   max: number;
   key: keyof Pick<
     ScoreBreakdown,
-    'policySupportScore' | 'landSecurityScore' | 'developmentPressureScore' | 'communityStrengthScore'
+    | "policySupportScore"
+    | "landSecurityScore"
+    | "developmentPressureScore"
+    | "communityStrengthScore"
   >;
   evidenceKey: keyof CategoryEvidence;
-  actionCategory: PublicAction['category'];
+  actionCategory: PublicAction["category"];
   icon: string;
-  viz: 'drops' | 'sun' | 'shields' | 'people';
+  viz: "drops" | "sun" | "shields" | "people";
 }
 
 const SCORE_CARDS: ScoreCardSpec[] = [
   {
-    id: 'policy',
-    label: 'Policy Support',
+    id: "policy",
+    label: "Policy Support",
     max: 20,
-    key: 'policySupportScore',
-    evidenceKey: 'policy',
-    actionCategory: 'Low Policy Support',
-    icon: '/figma-profile/drop-a.svg',
-    viz: 'drops'
+    key: "policySupportScore",
+    evidenceKey: "policy",
+    actionCategory: "Low Policy Support",
+    icon: "/figma-profile/drop-a.svg",
+    viz: "drops",
   },
   {
-    id: 'dev',
-    label: 'Development Buffer',
+    id: "dev",
+    label: "Development Buffer",
     max: 25,
-    key: 'developmentPressureScore',
-    evidenceKey: 'developmentPressure',
-    actionCategory: 'High Development Pressure',
-    icon: '/figma-profile/icon-sun.png',
-    viz: 'sun'
+    key: "developmentPressureScore",
+    evidenceKey: "developmentPressure",
+    actionCategory: "High Development Pressure",
+    icon: "/figma-profile/icon-sun.png",
+    viz: "sun",
   },
   {
-    id: 'land',
-    label: 'Land Security',
+    id: "land",
+    label: "Land Security",
     max: 35,
-    key: 'landSecurityScore',
-    evidenceKey: 'landSecurity',
-    actionCategory: 'Low Land Security',
-    icon: '/figma-profile/shield-a.svg',
-    viz: 'shields'
+    key: "landSecurityScore",
+    evidenceKey: "landSecurity",
+    actionCategory: "Low Land Security",
+    icon: "/figma-profile/shield-a.svg",
+    viz: "shields",
   },
   {
-    id: 'community',
-    label: 'Community',
+    id: "community",
+    label: "Community",
     max: 20,
-    key: 'communityStrengthScore',
-    evidenceKey: 'community',
-    actionCategory: 'Low Community Strength',
-    icon: '/figma-profile/viz-community.svg',
-    viz: 'people'
-  }
+    key: "communityStrengthScore",
+    evidenceKey: "community",
+    actionCategory: "Low Community Strength",
+    icon: "/figma-profile/viz-community.svg",
+    viz: "people",
+  },
 ];
 
 const ESG_ART: { url: string; alt: string }[] = [
-  { url: '/figma-profile/esg-art-b.png', alt: 'Elizabeth Street Garden — lawn and shed' },
-  { url: '/figma-profile/esg-art-a.png', alt: 'Elizabeth Street Garden — pavilion and garden beds' }
+  {
+    url: "/figma-profile/esg-art-b.png",
+    alt: "Elizabeth Street Garden — lawn and shed",
+  },
+  {
+    url: "/figma-profile/esg-art-a.png",
+    alt: "Elizabeth Street Garden — pavilion and garden beds",
+  },
 ];
 
 function categoryPercent(score: number, max: number): number {
@@ -88,38 +106,43 @@ function categoryPercent(score: number, max: number): number {
   return Math.round((score / max) * 100);
 }
 
-function profileImages(garden: ExplorerGarden, visuals: GardenVisual[]): { url: string; alt: string }[] {
+function profileImages(
+  garden: ExplorerGarden,
+  visuals: GardenVisual[],
+): { url: string; alt: string }[] {
   if (isElizabethStreetGarden(garden)) return ESG_ART;
   return visuals.slice(0, 2).map((visual) => ({
     url: visual.url,
-    alt: visual.title || garden.name
+    alt: visual.title || garden.name,
   }));
 }
 
 function bulletLabel(bullet: EvidenceBullet): string {
-  if (bullet.effect === 'plus') return `${bullet.text} +`;
-  if (bullet.effect === 'minus') return `${bullet.text} -`;
+  if (bullet.effect === "plus") return `${bullet.text} +`;
+  if (bullet.effect === "minus") return `${bullet.text} -`;
   return bullet.text;
 }
 
 function actionsForCategory(
   garden: ExplorerGarden,
-  spec: ScoreCardSpec
+  spec: ScoreCardSpec,
 ): Array<{ title: string; description: string }> {
   const matched = (garden.resilience.publicActions || []).filter(
-    (action) => action.category === spec.actionCategory
+    (action) => action.category === spec.actionCategory,
   );
   if (matched.length > 0) {
     return matched.slice(0, 2).map((action) => ({
       title: action.title,
-      description: action.description
+      description: action.description,
     }));
   }
 
-  return (garden.resilience.recommendedActions || []).slice(0, 2).map((action: RecommendedAction) => ({
-    title: action.title,
-    description: action.description
-  }));
+  return (garden.resilience.recommendedActions || [])
+    .slice(0, 2)
+    .map((action: RecommendedAction) => ({
+      title: action.title,
+      description: action.description,
+    }));
 }
 
 export const GardenProfileOverlay: React.FC<{
@@ -133,11 +156,18 @@ export const GardenProfileOverlay: React.FC<{
   const [selectedBullet, setSelectedBullet] = useState<number | null>(null);
   const [lightbox, setLightbox] = useState<Lightbox | null>(null);
 
-  const images = useMemo(() => profileImages(garden, visuals), [garden, visuals]);
+  const images = useMemo(
+    () => profileImages(garden, visuals),
+    [garden, visuals],
+  );
   const breakdown = garden.resilience.breakdown;
   const activeSpec = SCORE_CARDS.find((card) => card.id === flipped) || null;
-  const remainingCards = flipped ? SCORE_CARDS.filter((card) => card.id !== flipped) : SCORE_CARDS;
-  const bullets = activeSpec ? garden.resilience.categoryEvidence[activeSpec.evidenceKey] || [] : [];
+  const remainingCards = flipped
+    ? SCORE_CARDS.filter((card) => card.id !== flipped)
+    : SCORE_CARDS;
+  const bullets = activeSpec
+    ? garden.resilience.categoryEvidence[activeSpec.evidenceKey] || []
+    : [];
   const activeBullet = selectedBullet !== null ? bullets[selectedBullet] : null;
   const actionCards = activeSpec ? actionsForCategory(garden, activeSpec) : [];
 
@@ -158,13 +188,13 @@ export const GardenProfileOverlay: React.FC<{
   useEffect(() => {
     if (!lightbox) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.stopPropagation();
         setLightbox(null);
       }
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [lightbox]);
 
   const closeLightbox = () => setLightbox(null);
@@ -174,27 +204,27 @@ export const GardenProfileOverlay: React.FC<{
       <GardenLotCard map={map || null} garden={garden} />
 
       {images.length > 0 && (
-        <div className="absolute left-6 top-[96px] z-[1200] w-[min(52vw,720px)] h-[min(46vh,400px)] pointer-events-none">
-          {images[0] && (
-            <ImageCard
-              image={images[0]}
-              className="absolute left-0 top-[22%] w-[min(48%,340px)]"
-              onOpen={() => setLightbox({ kind: 'image', ...images[0] })}
-            />
-          )}
+        <div className="absolute left-6 top-[96px] z-[1200] w-[360px] pointer-events-none">
           {images[1] && (
             <ImageCard
               image={images[1]}
-              className="absolute left-[36%] top-0 w-[min(52%,360px)]"
-              onOpen={() => setLightbox({ kind: 'image', ...images[1] })}
+              className="relative w-[360px]"
+              onOpen={() => setLightbox({ kind: "image", ...images[1] })}
+            />
+          )}
+          {images[0] && (
+            <ImageCard
+              image={images[0]}
+              className={`relative w-[340px] ${images[1] ? "mt-10" : ""}`}
+              onOpen={() => setLightbox({ kind: "image", ...images[0] })}
             />
           )}
         </div>
       )}
 
       <div
-        className={`absolute right-6 bottom-28 left-6 z-[1200] flex items-end justify-end pointer-events-none isolate ${
-          flipped ? 'gap-[87px]' : ''
+        className={`absolute right-6 bottom-28 z-[1200] flex items-end justify-end pointer-events-none isolate ${
+          flipped ? "gap-[87px]" : ""
         }`}
       >
         {activeSpec && (
@@ -209,11 +239,11 @@ export const GardenProfileOverlay: React.FC<{
                     detail={actionCards[1].description}
                     onOpen={() =>
                       setLightbox({
-                        kind: 'note',
-                        tone: 'action',
-                        title: 'I will make a difference!',
+                        kind: "note",
+                        tone: "action",
+                        title: "I will make a difference!",
                         body: actionCards[1].title,
-                        detail: actionCards[1].description
+                        detail: actionCards[1].description,
                       })
                     }
                   />
@@ -225,10 +255,10 @@ export const GardenProfileOverlay: React.FC<{
                     body={activeBullet.didYouKnow}
                     onOpen={() =>
                       setLightbox({
-                        kind: 'note',
-                        tone: 'learn',
-                        title: 'Did you know?',
-                        body: activeBullet.didYouKnow || ''
+                        kind: "note",
+                        tone: "learn",
+                        title: "Did you know?",
+                        body: activeBullet.didYouKnow || "",
                       })
                     }
                   />
@@ -241,11 +271,11 @@ export const GardenProfileOverlay: React.FC<{
                     detail={actionCards[0].description}
                     onOpen={() =>
                       setLightbox({
-                        kind: 'note',
-                        tone: 'action',
-                        title: 'I will make a difference!',
+                        kind: "note",
+                        tone: "action",
+                        title: "I will make a difference!",
                         body: actionCards[0].title,
-                        detail: actionCards[0].description
+                        detail: actionCards[0].description,
                       })
                     }
                   />
@@ -257,10 +287,10 @@ export const GardenProfileOverlay: React.FC<{
                     body={activeBullet.whatItMeans}
                     onOpen={() =>
                       setLightbox({
-                        kind: 'note',
-                        tone: 'learn',
-                        title: 'What does it mean?',
-                        body: activeBullet.whatItMeans || ''
+                        kind: "note",
+                        tone: "learn",
+                        title: "What does it mean?",
+                        body: activeBullet.whatItMeans || "",
                       })
                     }
                   />
@@ -275,7 +305,7 @@ export const GardenProfileOverlay: React.FC<{
               selectedBullet={selectedBullet}
               onHoverBullet={setHoveredBullet}
               onSelectBullet={setSelectedBullet}
-              onFocus={() => setLightbox({ kind: 'score' })}
+              onFocus={() => setLightbox({ kind: "score" })}
             />
           </div>
         )}
@@ -291,10 +321,14 @@ export const GardenProfileOverlay: React.FC<{
                 className="relative shrink-0 size-[226px] pointer-events-auto"
                 style={{
                   zIndex: z,
-                  marginRight: index === remainingCards.length - 1 ? 0 : -180
+                  marginRight: index === remainingCards.length - 1 ? 0 : -180,
                 }}
                 onMouseEnter={() => setHovered(card.id)}
-                onMouseLeave={() => setHovered((current) => (current === card.id ? null : current))}
+                onMouseLeave={() =>
+                  setHovered((current) =>
+                    current === card.id ? null : current,
+                  )
+                }
               >
                 <button
                   type="button"
@@ -327,14 +361,14 @@ export const GardenProfileOverlay: React.FC<{
           >
             ×
           </button>
-          {lightbox.kind === 'image' && (
+          {lightbox.kind === "image" && (
             <img
               src={lightbox.url}
               alt={lightbox.alt}
               className="max-h-[82vh] max-w-[82vw] object-contain rounded-[15px] border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] brightness-[0.92]"
             />
           )}
-          {lightbox.kind === 'score' && activeSpec && (
+          {lightbox.kind === "score" && activeSpec && (
             <div onClick={(event) => event.stopPropagation()}>
               <FlippedScoreCard
                 spec={activeSpec}
@@ -347,7 +381,7 @@ export const GardenProfileOverlay: React.FC<{
               />
             </div>
           )}
-          {lightbox.kind === 'note' && (
+          {lightbox.kind === "note" && (
             <div onClick={(event) => event.stopPropagation()}>
               <PinnedNote
                 tone={lightbox.tone}
@@ -372,7 +406,7 @@ function FlippedScoreCard({
   onHoverBullet,
   onSelectBullet,
   onFocus,
-  focused = false
+  focused = false,
 }: {
   spec: ScoreCardSpec;
   bullets: EvidenceBullet[];
@@ -387,45 +421,58 @@ function FlippedScoreCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={focused ? `${spec.label} details` : `${spec.label} details. Click the card to zoom.`}
+      aria-label={
+        focused
+          ? `${spec.label} details`
+          : `${spec.label} details. Click the card to zoom.`
+      }
       onClick={focused ? undefined : onFocus}
       onKeyDown={(event) => {
         if (focused || !onFocus) return;
-        if (event.key === 'Enter' || event.key === ' ') {
+        if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onFocus();
         }
       }}
       className={`relative rounded-[15px] bg-[#d8f6e7] border-2 border-black shadow-[4px_4px_0_0_#3f3f3f] cursor-pointer ${
-        focused ? 'w-[min(92vw,480px)] min-h-[min(82vh,520px)] p-6 brightness-[0.97]' : 'size-[226px] p-[11px]'
+        focused
+          ? "w-[min(92vw,480px)] min-h-[min(82vh,520px)] p-6 brightness-[0.97]"
+          : "size-[226px] p-[11px]"
       }`}
     >
       <img
         src="/figma-profile/pin-card.svg"
         alt=""
         className={`absolute left-1/2 -translate-x-1/2 pointer-events-none ${
-          focused ? '-top-4 w-4 h-7' : '-top-3 w-[13px] h-[23px]'
+          focused ? "-top-4 w-4 h-7" : "-top-3 w-[13px] h-[23px]"
         }`}
       />
-      <div className={`flex flex-col h-full items-start ${focused ? 'gap-6' : 'gap-4'}`}>
+      <div
+        className={`flex flex-col h-full items-start ${focused ? "gap-6" : "gap-4"}`}
+      >
         <div className="flex gap-[26px] items-start w-full">
-          <p className={`font-medium text-black whitespace-nowrap ${focused ? 'text-[22px]' : 'text-[15px]'}`}>
+          <p
+            className={`font-medium text-black whitespace-nowrap ${focused ? "text-[22px]" : "text-[15px]"}`}
+          >
             {spec.label}
           </p>
-          <div className={`relative shrink-0 overflow-hidden ${focused ? 'size-7' : 'size-[18px]'}`}>
+          <div
+            className={`relative shrink-0 overflow-hidden ${focused ? "size-7" : "size-[18px]"}`}
+          >
             <img src={spec.icon} alt="" className="size-full object-cover" />
           </div>
         </div>
         <div
           className={`w-full flex-1 overflow-y-auto tracking-[-0.05em] text-black ${
-            focused ? 'text-[16px]' : 'text-[12px]'
+            focused ? "text-[16px]" : "text-[12px]"
           }`}
         >
           {bullets.length === 0 ? (
             <p>No evidence lines for this category yet.</p>
           ) : (
             bullets.map((bullet, index) => {
-              const active = hoveredBullet === index || selectedBullet === index;
+              const active =
+                hoveredBullet === index || selectedBullet === index;
               return (
                 <p
                   key={`${bullet.text}-${index}`}
@@ -436,8 +483,8 @@ function FlippedScoreCard({
                     onSelectBullet(index);
                   }}
                   className={`leading-normal last:mb-0 cursor-pointer ${
-                    focused ? 'mb-4' : 'mb-[10px]'
-                  } ${active ? 'bg-[#fff5db]' : 'bg-transparent'}`}
+                    focused ? "mb-4" : "mb-[10px]"
+                  } ${active ? "bg-[#fff5db]" : "bg-transparent"}`}
                 >
                   {bulletLabel(bullet)}
                 </p>
@@ -457,45 +504,49 @@ function PinnedNote({
   body,
   detail,
   onOpen,
-  focused = false
+  focused = false,
 }: {
   className?: string;
-  tone: 'learn' | 'action';
+  tone: "learn" | "action";
   title: string;
   body: string;
   detail?: string;
   onOpen?: () => void;
   focused?: boolean;
 }) {
-  const background = tone === 'learn' ? 'bg-[#faf3db]' : 'bg-[#d2d1ff]';
+  const background = tone === "learn" ? "bg-[#faf3db]" : "bg-[#d2d1ff]";
   return (
     <button
       type="button"
       onClick={focused ? undefined : onOpen}
-      className={`${className || 'relative'} text-left ${
-        focused ? 'w-[min(92vw,480px)] pointer-events-auto' : 'w-[219px] pointer-events-auto cursor-pointer'
+      className={`${className || "relative"} text-left ${
+        focused
+          ? "w-[min(92vw,480px)] pointer-events-auto"
+          : "w-[219px] pointer-events-auto cursor-pointer"
       }`}
     >
       <img
         src="/figma-profile/pin-card.svg"
         alt=""
         className={`absolute left-1/2 -translate-x-1/2 ${
-          focused ? '-top-4 w-4 h-7' : '-top-3 w-[13px] h-[23px]'
+          focused ? "-top-4 w-4 h-7" : "-top-3 w-[13px] h-[23px]"
         }`}
       />
       <div
         className={`${background} border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] ${
           focused
-            ? 'mt-4 min-h-[min(70vh,480px)] rounded-[20px] px-8 pt-8 pb-6 brightness-[0.97]'
-            : 'mt-3 size-[219px] rounded-[20px] px-5 pt-5 pb-4 overflow-hidden'
+            ? "mt-4 min-h-[min(70vh,480px)] rounded-[20px] px-8 pt-8 pb-6 brightness-[0.97]"
+            : "mt-3 size-[219px] rounded-[20px] px-5 pt-5 pb-4 overflow-hidden"
         }`}
       >
-        <p className={`font-medium text-black leading-normal ${focused ? 'text-[22px]' : 'text-[15px]'}`}>
+        <p
+          className={`font-medium text-black leading-normal ${focused ? "text-[22px]" : "text-[15px]"}`}
+        >
           {title}
         </p>
         <p
           className={`tracking-[-0.05em] text-black leading-normal ${
-            focused ? 'mt-8 text-[16px]' : 'mt-5 text-[12px]'
+            focused ? "mt-8 text-[16px]" : "mt-5 text-[12px]"
           }`}
         >
           {body}
@@ -503,7 +554,7 @@ function PinnedNote({
         {detail && (
           <p
             className={`tracking-[-0.05em] text-black leading-normal ${
-              focused ? 'mt-4 text-[16px]' : 'mt-2 text-[12px]'
+              focused ? "mt-4 text-[16px]" : "mt-2 text-[12px]"
             }`}
           >
             {detail}
@@ -514,10 +565,19 @@ function PinnedNote({
   );
 }
 
-function GardenLotCard({ map, garden }: { map: L.Map | null; garden: ExplorerGarden }) {
-  const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(
-    null
-  );
+function GardenLotCard({
+  map,
+  garden,
+}: {
+  map: L.Map | null;
+  garden: ExplorerGarden;
+}) {
+  const [rect, setRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!map) return;
@@ -535,15 +595,15 @@ function GardenLotCard({ map, garden }: { map: L.Map | null; garden: ExplorerGar
         left: Math.min(sw.x, ne.x),
         top: Math.min(sw.y, ne.y),
         width,
-        height
+        height,
       });
     };
 
-    map.on('move zoom moveend zoomend', sync);
+    map.on("move zoom moveend zoomend", sync);
     sync();
     const timers = [40, 200, 750].map((ms) => window.setTimeout(sync, ms));
     return () => {
-      map.off('move zoom moveend zoomend', sync);
+      map.off("move zoom moveend zoomend", sync);
       timers.forEach((id) => window.clearTimeout(id));
     };
   }, [map, garden]);
@@ -560,7 +620,8 @@ function GardenLotCard({ map, garden }: { map: L.Map | null; garden: ExplorerGar
             top: rect.top,
             width: rect.width,
             height: rect.height,
-            boxShadow: '4px 4px 0 0 #3f3f3f, 0 0 0 9999px rgba(232, 232, 232, 0.82)'
+            boxShadow:
+              "4px 4px 0 0 #3f3f3f, 0 0 0 9999px rgba(232, 232, 232, 0.82)",
           }}
         />
       </div>
@@ -577,7 +638,7 @@ function GardenLotCard({ map, garden }: { map: L.Map | null; garden: ExplorerGar
 function ImageCard({
   image,
   className,
-  onOpen
+  onOpen,
 }: {
   image: { url: string; alt: string };
   className: string;
@@ -589,16 +650,24 @@ function ImageCard({
       onClick={onOpen}
       className={`${className} relative pointer-events-auto cursor-pointer`}
     >
-      <img src="/figma-profile/pin-card.svg" alt="" className="absolute left-1/2 -translate-x-1/2 -top-2 w-3 h-5 z-10" />
+      <img
+        src="/figma-profile/pin-card.svg"
+        alt=""
+        className="absolute left-1/2 -translate-x-1/2 -top-2 w-3 h-5 z-10"
+      />
       <div className="mt-2 aspect-[4/3] w-full overflow-hidden rounded-[15px] border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f]">
-        <img src={image.url} alt={image.alt} className="size-full object-cover" />
+        <img
+          src={image.url}
+          alt={image.alt}
+          className="size-full object-cover"
+        />
       </div>
     </button>
   );
 }
 
 function ScoreViz({ spec, score }: { spec: ScoreCardSpec; score: number }) {
-  if (spec.viz === 'drops') {
+  if (spec.viz === "drops") {
     return (
       <IconMeter
         count={20}
@@ -611,7 +680,7 @@ function ScoreViz({ spec, score }: { spec: ScoreCardSpec; score: number }) {
       />
     );
   }
-  if (spec.viz === 'shields') {
+  if (spec.viz === "shields") {
     return (
       <IconMeter
         count={9}
@@ -623,16 +692,24 @@ function ScoreViz({ spec, score }: { spec: ScoreCardSpec; score: number }) {
       />
     );
   }
-  if (spec.viz === 'sun') {
+  if (spec.viz === "sun") {
     return (
       <div className="relative h-[172px] w-[170px]">
-        <img src="/figma-profile/viz-dev.svg" alt="" className="absolute inset-0 size-full" />
+        <img
+          src="/figma-profile/viz-dev.svg"
+          alt=""
+          className="absolute inset-0 size-full"
+        />
       </div>
     );
   }
   return (
     <div className="relative h-[162px] w-[152px]">
-      <img src="/figma-profile/viz-community.svg" alt="" className="absolute inset-0 size-full" />
+      <img
+        src="/figma-profile/viz-community.svg"
+        alt=""
+        className="absolute inset-0 size-full"
+      />
     </div>
   );
 }
@@ -644,7 +721,7 @@ function IconMeter({
   filledSrc,
   emptySrc,
   columnMajor = false,
-  className
+  className,
 }: {
   count: number;
   columns: number;
@@ -660,7 +737,7 @@ function IconMeter({
       className={className}
       style={{
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`
+        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
       }}
     >
       {Array.from({ length: count }, (_, i) => {

@@ -1,21 +1,34 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { Garden, GardenResilienceScore } from '../types';
-import { calculateGardenResilience } from '../services/resilienceEngine';
-import { GardenPlanOverlay, lotBoundsForGarden } from '../data/gardenPlanOverlays';
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { Garden, GardenResilienceScore } from "../types";
+import {
+  GardenPlanOverlay,
+  lotBoundsForGarden,
+} from "../data/gardenPlanOverlays";
 
 type EnrichedGarden = Garden & { resilience?: GardenResilienceScore };
 
 export interface GardenMapHandle {
   zoomIn: () => void;
   zoomOut: () => void;
-  flyToGarden: (garden: EnrichedGarden, zoom?: number, placement?: 'center' | 'profile') => void;
+  flyToGarden: (
+    garden: EnrichedGarden,
+    zoom?: number,
+    placement?: "center" | "profile",
+  ) => void;
 }
 
 export interface GardenNetworkTabProps {
   gardens?: EnrichedGarden[];
   onSelectGarden?: (garden: EnrichedGarden) => void;
+  onHoverGarden?: (garden: EnrichedGarden) => void;
+  onUnhoverGarden?: () => void;
   onDeselectGarden?: () => void;
   selectedGardenId?: string | null;
   onMapReady?: (map: L.Map) => void;
@@ -24,38 +37,53 @@ export interface GardenNetworkTabProps {
   spotlightGarden?: EnrichedGarden | null;
 }
 
-const PIN_ICON = L.icon({
-  iconUrl: '/figma-map/pin.svg',
-  iconSize: [13, 25],
-  iconAnchor: [6.5, 25],
-  popupAnchor: [0, -28]
+const PIN_ICON = L.divIcon({
+  className: "garden-pin",
+  html: '<img src="/figma-map/pin.svg" alt="" width="13" height="25" />',
+  iconSize: [28, 36],
+  iconAnchor: [14, 36],
 });
 
-function getGardenResilience(garden: EnrichedGarden): GardenResilienceScore {
-  if (garden.resilience) return garden.resilience;
-  return calculateGardenResilience(garden);
-}
-
-export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProps>(
-  ({ gardens = [], onSelectGarden, onDeselectGarden, selectedGardenId, onMapReady, planOverlay, mapLocked = false }, ref) => {
+export const GardenNetworkTab = forwardRef<
+  GardenMapHandle,
+  GardenNetworkTabProps
+>(
+  (
+    {
+      gardens = [],
+      onSelectGarden,
+      onHoverGarden,
+      onUnhoverGarden,
+      onDeselectGarden,
+      selectedGardenId,
+      onMapReady,
+      planOverlay,
+      mapLocked = false,
+    },
+    ref,
+  ) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const leafletMapRef = useRef<L.Map | null>(null);
     const gardenLayerGroupRef = useRef<L.LayerGroup | null>(null);
     const planLayerRef = useRef<L.ImageOverlay | null>(null);
     const pointerDownRef = useRef<L.Point | null>(null);
     const selectRef = useRef(onSelectGarden);
+    const hoverRef = useRef(onHoverGarden);
+    const unhoverRef = useRef(onUnhoverGarden);
     const deselectRef = useRef(onDeselectGarden);
     selectRef.current = onSelectGarden;
+    hoverRef.current = onHoverGarden;
+    unhoverRef.current = onUnhoverGarden;
     deselectRef.current = onDeselectGarden;
 
     useImperativeHandle(ref, () => ({
       zoomIn: () => leafletMapRef.current?.zoomIn(),
       zoomOut: () => leafletMapRef.current?.zoomOut(),
-      flyToGarden: (garden, zoom = 16, placement = 'center') => {
+      flyToGarden: (garden, zoom = 16, placement = "center") => {
         const map = leafletMapRef.current;
         if (!map || !garden.latitude || !garden.longitude) return;
         const latlng = L.latLng(garden.latitude, garden.longitude);
-        if (placement !== 'profile') {
+        if (placement !== "profile") {
           map.flyTo(latlng, zoom, { duration: 0.65 });
           return;
         }
@@ -65,26 +93,28 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
           const size = map.getSize();
           const gardenScreen = L.point(size.x * 0.62, size.y * 0.42);
           const projected = map.project(latlng, zoom);
-          const centerPoint = projected.subtract(gardenScreen.subtract(size.divideBy(2)));
+          const centerPoint = projected.subtract(
+            gardenScreen.subtract(size.divideBy(2)),
+          );
           map.flyTo(map.unproject(centerPoint, zoom), zoom, { duration: 0.7 });
           return;
         }
 
         const size = map.getSize();
-        const imageSlot = Math.min(size.x * 0.5, 560) + 40;
-        const padLeft = Math.min(imageSlot, Math.max(48, size.x - 280));
-        const padTop = 118;
-        const padRight = 32;
-        const padBottom = Math.min(348, Math.max(220, size.y * 0.4));
+        const padTop = 108;
+        const padRight = 24;
+        const padBottom = Math.min(360, Math.max(250, size.y * 0.42));
+        const rightSlot = Math.min(420, Math.max(260, size.x * 0.32));
+        const padLeft = Math.max(48, size.x - padRight - rightSlot);
         const innerW = size.x - padLeft - padRight;
         const innerH = size.y - padTop - padBottom;
         map.flyToBounds(bounds, {
-          paddingTopLeft: L.point(innerW > 120 ? padLeft : 48, padTop),
-          paddingBottomRight: L.point(padRight, innerH > 120 ? padBottom : 180),
+          paddingTopLeft: L.point(innerW > 80 ? padLeft : 48, padTop),
+          paddingBottomRight: L.point(padRight, innerH > 80 ? padBottom : 200),
           maxZoom: 20,
-          duration: 0.7
+          duration: 0.7,
         });
-      }
+      },
     }));
 
     useEffect(() => {
@@ -100,21 +130,24 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
         zoom: 14,
         zoomControl: false,
         attributionControl: true,
-        maxZoom: 20
+        maxZoom: 20,
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution:
-          '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        subdomains: 'abcd',
-        maxZoom: 20
-      }).addTo(map);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          subdomains: "abcd",
+          maxZoom: 20,
+        },
+      ).addTo(map);
 
-      map.createPane('gardenPlan');
-      const planPane = map.getPane('gardenPlan');
+      map.createPane("gardenPlan");
+      const planPane = map.getPane("gardenPlan");
       if (planPane) {
-        planPane.style.zIndex = '450';
-        planPane.style.pointerEvents = 'none';
+        planPane.style.zIndex = "450";
+        planPane.style.pointerEvents = "none";
       }
 
       const layerGroup = L.layerGroup().addTo(map);
@@ -122,10 +155,10 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
       leafletMapRef.current = map;
       onMapReady?.(map);
 
-      map.on('mousedown', (event) => {
+      map.on("mousedown", (event) => {
         pointerDownRef.current = event.containerPoint;
       });
-      map.on('click', (event) => {
+      map.on("click", (event) => {
         const down = pointerDownRef.current;
         pointerDownRef.current = null;
         if (down && event.containerPoint.distanceTo(down) > 6) return;
@@ -134,10 +167,10 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
 
       const resize = () => map.invalidateSize();
       requestAnimationFrame(resize);
-      window.addEventListener('resize', resize);
+      window.addEventListener("resize", resize);
 
       return () => {
-        window.removeEventListener('resize', resize);
+        window.removeEventListener("resize", resize);
         map.remove();
         leafletMapRef.current = null;
       };
@@ -153,15 +186,15 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
         map.doubleClickZoom,
         map.scrollWheelZoom,
         map.boxZoom,
-        map.keyboard
+        map.keyboard,
       ];
 
       if (mapLocked) {
         handlers.forEach((handler) => handler.disable());
-        map.getContainer().style.cursor = 'default';
+        map.getContainer().style.cursor = "default";
       } else {
         handlers.forEach((handler) => handler.enable());
-        map.getContainer().style.cursor = '';
+        map.getContainer().style.cursor = "";
       }
     }, [mapLocked]);
 
@@ -176,9 +209,9 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
 
       const overlay = L.imageOverlay(planOverlay.url, planOverlay.bounds, {
         opacity: 1,
-        className: 'esg-plan-overlay',
+        className: "esg-plan-overlay",
         interactive: false,
-        pane: 'gardenPlan'
+        pane: "gardenPlan",
       }).addTo(map);
       planLayerRef.current = overlay;
 
@@ -196,20 +229,18 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
       gardens.forEach((garden) => {
         if (!garden.latitude || !garden.longitude) return;
         if (mapLocked) return;
-        const res = getGardenResilience(garden);
         const marker = L.marker([garden.latitude, garden.longitude], {
           icon: PIN_ICON,
-          zIndexOffset: selectedGardenId === garden.id ? 500 : 0
+          zIndexOffset: selectedGardenId === garden.id ? 500 : 0,
         });
 
-        marker.bindTooltip(
-          `<div style="font-family: Inter, sans-serif; font-size: 12px; padding: 2px 4px;">
-            <strong>${garden.name}</strong><br/>${res.resilienceLevel} · ${res.score}
-          </div>`,
-          { direction: 'top', offset: [0, -22], opacity: 0.95 }
-        );
-
-        marker.on('click', (event) => {
+        marker.on("mouseover", () => {
+          hoverRef.current?.(garden);
+        });
+        marker.on("mouseout", () => {
+          unhoverRef.current?.();
+        });
+        marker.on("click", (event) => {
           L.DomEvent.stopPropagation(event);
           selectRef.current?.(garden);
         });
@@ -222,7 +253,7 @@ export const GardenNetworkTab = forwardRef<GardenMapHandle, GardenNetworkTabProp
         <div ref={mapContainerRef} className="w-full h-full z-0" />
       </div>
     );
-  }
+  },
 );
 
-GardenNetworkTab.displayName = 'GardenNetworkTab';
+GardenNetworkTab.displayName = "GardenNetworkTab";

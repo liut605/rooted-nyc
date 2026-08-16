@@ -10,8 +10,14 @@
   bottom: 88px;
 }
 
-.esg-plan-overlay {
-  mix-blend-mode: multiply;
-  pointer-events: none;
-  filter: contrast(1.08) saturate(1.15);
+.leaflet-div-icon.garden-pin {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-div-icon.garden-pin img {
+  display: block;
+  margin: 0 auto;
+  width: 13px;
+  height: 25px;
 }

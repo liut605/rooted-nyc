@@ -17,16 +17,28 @@ export const GardenDataExplorer: React.FC<{
 }> = ({ openGardenId, onOpenReport }) => {
   const mapRef = useRef<GardenMapHandle>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [gardens, setGardens] = useState<ExplorerGarden[]>([]);
   const [selectedBorough, setSelectedBorough] = useState('All');
   const [selectedResilience, setSelectedResilience] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [previewGarden, setPreviewGarden] = useState<ExplorerGarden | null>(null);
+  const [hoveredGarden, setHoveredGarden] = useState<ExplorerGarden | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVisuals, setPreviewVisuals] = useState<GardenVisual[]>([]);
   const [cardPoint, setCardPoint] = useState<{ x: number; y: number } | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const cardGarden = profileOpen ? null : hoveredGarden ?? previewGarden;
+
+  const clearHoverHideTimer = () => {
+    if (hoverHideTimer.current) {
+      clearTimeout(hoverHideTimer.current);
+      hoverHideTimer.current = null;
+    }
+  };
+
+  useEffect(() => () => clearHoverHideTimer(), []);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -63,18 +75,19 @@ export const GardenDataExplorer: React.FC<{
   }, [openGardenId, gardens]);
 
   useEffect(() => {
-    if (!previewGarden) {
+    const visualGarden = (!profileOpen && hoveredGarden) || previewGarden;
+    if (!visualGarden) {
       setPreviewImage(null);
       setPreviewVisuals([]);
       return;
     }
     let cancelled = false;
     const fallback =
-      previewGarden.id === 'MGT056' || /elizabeth\s+street/i.test(previewGarden.name)
+      visualGarden.id === 'MGT056' || /elizabeth\s+street/i.test(visualGarden.name)
         ? '/figma-map/esg-header.png'
         : null;
 
-    fetch(`/api/gardens/${encodeURIComponent(previewGarden.id)}/visuals`)
+    fetch(`/api/gardens/${encodeURIComponent(visualGarden.id)}/visuals`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
@@ -93,12 +106,12 @@ export const GardenDataExplorer: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [previewGarden?.id, previewGarden?.name]);
+  }, [profileOpen, hoveredGarden?.id, hoveredGarden?.name, previewGarden?.id, previewGarden?.name]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
-    const garden = previewGarden;
-    if (!map || !garden?.latitude || !garden?.longitude || profileOpen) {
+    const garden = cardGarden;
+    if (!map || !garden?.latitude || !garden?.longitude) {
       setCardPoint(null);
       return;
     }
@@ -113,7 +126,7 @@ export const GardenDataExplorer: React.FC<{
     return () => {
       map.off('move zoom moveend zoomend', update);
     };
-  }, [previewGarden, mapReady, profileOpen]);
+  }, [cardGarden, mapReady, profileOpen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -124,6 +137,7 @@ export const GardenDataExplorer: React.FC<{
         return;
       }
       setPreviewGarden(null);
+      setHoveredGarden(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -140,11 +154,24 @@ export const GardenDataExplorer: React.FC<{
       <GardenNetworkTab
         ref={mapRef}
         gardens={gardens}
-        selectedGardenId={previewGarden?.id}
+        selectedGardenId={previewGarden?.id ?? hoveredGarden?.id}
         mapLocked={profileOpen}
         spotlightGarden={profileOpen ? previewGarden : null}
+        onHoverGarden={(garden) => {
+          if (profileOpen || !garden.resilience) return;
+          clearHoverHideTimer();
+          setHoveredGarden(garden as ExplorerGarden);
+        }}
+        onUnhoverGarden={() => {
+          clearHoverHideTimer();
+          hoverHideTimer.current = setTimeout(() => {
+            setHoveredGarden(null);
+          }, 280);
+        }}
         onSelectGarden={(garden) => {
           if (garden.resilience) {
+            clearHoverHideTimer();
+            setHoveredGarden(null);
             setProfileOpen(false);
             setPreviewGarden(garden as ExplorerGarden);
             mapRef.current?.flyToGarden(garden, 16);
@@ -156,6 +183,7 @@ export const GardenDataExplorer: React.FC<{
             if (previewGarden) mapRef.current?.flyToGarden(previewGarden, 16);
             return;
           }
+          setHoveredGarden(null);
           setPreviewGarden(null);
         }}
         onMapReady={(map) => {
@@ -259,15 +287,25 @@ export const GardenDataExplorer: React.FC<{
         </label>
       </div>
 
-      {previewGarden && !profileOpen && cardPoint && (
+      {cardGarden && cardPoint && (
         <GardenThumbnailCard
-          garden={previewGarden}
+          garden={cardGarden}
           imageUrl={previewImage}
           x={cardPoint.x}
           y={cardPoint.y}
+          onMouseEnter={clearHoverHideTimer}
+          onMouseLeave={() => {
+            clearHoverHideTimer();
+            hoverHideTimer.current = setTimeout(() => {
+              setHoveredGarden(null);
+            }, 280);
+          }}
           onLearnMore={() => {
+            clearHoverHideTimer();
+            setHoveredGarden(null);
+            setPreviewGarden(cardGarden);
             setProfileOpen(true);
-            mapRef.current?.flyToGarden(previewGarden, 20, 'profile');
+            mapRef.current?.flyToGarden(cardGarden, 20, 'profile');
           }}
         />
       )}
@@ -295,20 +333,26 @@ function GardenThumbnailCard({
   imageUrl,
   x,
   y,
-  onLearnMore
+  onLearnMore,
+  onMouseEnter,
+  onMouseLeave
 }: {
   garden: ExplorerGarden;
   imageUrl: string | null;
   x: number;
   y: number;
   onLearnMore: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }) {
   const level = garden.resilience.resilienceLevel;
 
   return (
     <div
-      className="absolute z-[1100] w-[270px] -translate-x-1/2 -translate-y-[calc(100%+18px)] bg-[#306a4e] border border-[#3f3f3f] rounded-[15px] p-4 flex flex-col gap-4"
+      className="absolute z-[1100] w-[270px] -translate-x-1/2 -translate-y-[calc(100%+48px)] bg-[#306a4e] border border-[#3f3f3f] rounded-[15px] p-4 flex flex-col gap-4 pointer-events-auto"
       style={{ left: x, top: y }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="relative h-[119px] w-full overflow-hidden rounded-[12px] border border-[#3f3f3f]">
         {imageUrl ? (
@@ -316,7 +360,7 @@ function GardenThumbnailCard({
         ) : (
           <div className="absolute inset-0 bg-[#254f3a]" />
         )}
-        <div className="absolute -right-8 -top-3 rotate-[19deg] bg-[#b32d2d] shadow-[0_4px_2px_rgba(0,0,0,0.4)] px-10 py-2">
+        <div className="absolute top-[22px] -right-[36px] w-[246px] rotate-[28deg] bg-[#b32d2d] py-1.5 text-center shadow-[0_4px_2px_rgba(0,0,0,0.4)]">
           <p className="text-[#f5f5f5] text-[15px] tracking-[-0.05em] whitespace-nowrap">{sashLabel(level)}</p>
         </div>
       </div>
