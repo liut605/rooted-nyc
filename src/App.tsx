@@ -22,12 +22,18 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [devNoticeOpen]);
 
-  const navItem = (id: Tab, label: string) => {
+  const navItem = (id: Tab, label: string, edge: "first" | "middle" | "last") => {
     const active = activeTab === id;
     const locked = DEV_ONLY.has(id);
+    const radius =
+      edge === "first"
+        ? "rounded-l-[13px]"
+        : edge === "last"
+          ? "rounded-r-[13px]"
+          : "";
     return (
       <span
-        className="relative"
+        className="relative flex items-stretch"
         onMouseEnter={() => locked && setHoveredDev(id)}
         onMouseLeave={() => setHoveredDev(null)}
       >
@@ -42,7 +48,7 @@ export default function App() {
             if (id === "landing") setLandingKey((key) => key + 1);
             setActiveTab(id);
           }}
-          className={`px-4 py-2 rounded-[15px] font-medium text-[18px] md:text-[20px] tracking-[-0.05em] whitespace-nowrap transition-colors duration-[120ms] ${
+          className={`px-3.5 py-1.5 font-medium text-[16px] md:text-[18px] tracking-[-0.05em] whitespace-nowrap transition-colors duration-[120ms] ${radius} ${
             active
               ? "bg-[#306a4e] text-[#f3f3f3]"
               : "text-[#3f3f3f] hover:bg-[#ede8f7] active:bg-[#d8f6e7]"
@@ -75,11 +81,11 @@ export default function App() {
       )}
 
       {activeTab !== "landing" && (
-        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] flex items-center gap-8 md:gap-12 px-2 py-1 font-[Inter,sans-serif]">
-          {navItem("explorer", "Explore")}
-          {navItem("learn", "Learn")}
-          {navItem("actions", "Act")}
-          {navItem("landing", "About")}
+        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] flex items-stretch font-[Inter,sans-serif]">
+          {navItem("explorer", "Explore", "first")}
+          {navItem("learn", "Learn", "middle")}
+          {navItem("actions", "Act", "middle")}
+          {navItem("landing", "About", "last")}
         </nav>
       )}
 

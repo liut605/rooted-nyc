@@ -1,0 +1,19 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="118" height="54" viewBox="0 0 118 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="zoom button" filter="url(#filter0_d_0_10)">
+<rect width="114" height="50" rx="10" fill="#FBF7FF" shape-rendering="crispEdges"/>
+<rect x="0.5" y="0.5" width="113" height="49" rx="9.5" stroke="#3F3F3F" shape-rendering="crispEdges"/>
+<path id="Vector 27" d="M25 25.3636H41M33.2162 17V33" stroke="#3F3F3F" stroke-width="2"/>
+<path id="Vector 28" d="M73 25H89" stroke="#3F3F3F" stroke-width="2"/>
+</g>
+<defs>
+<filter id="filter0_d_0_10" x="0" y="0" width="118" height="54" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dx="4" dy="4"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.247059 0 0 0 0 0.247059 0 0 0 0 0.247059 0 0 0 1 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_10"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_10" result="shape"/>
+</filter>
+</defs>
+</svg>

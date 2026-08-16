@@ -1,7 +1,6 @@
 // Rooted NYC — Landing Page (v2)
 import { useState, useEffect, useRef, useCallback, type ReactElement } from "react";
 import VizCards from "./imports/Viz";
-import MainApp from "./imports/Main";
 
 // ─── Theme ────────────────────────────────────────────────────────────────
 
@@ -290,7 +289,7 @@ function Slide3() {
           that help each garden endure.
         </p>
       </div>
-      {/* Right: app screenshot — focused on the right half of the app */}
+      {/* Right: live app screenshot */}
       <div className="relative flex items-center justify-center py-8 pr-10 overflow-hidden">
         <div className="relative w-full h-full rounded-xl overflow-hidden"
           style={{ boxShadow: "0 0 0 1px rgba(200,168,75,0.18), 0 24px 64px rgba(0,0,0,0.55)" }}>
@@ -304,23 +303,16 @@ function Slide3() {
             <div className="ml-3 px-3 py-0.5 rounded"
               style={{ background: "rgba(240,232,213,0.06)", color: "rgba(240,232,213,0.38)",
                 fontFamily: "Inter, sans-serif", fontSize: "0.65rem" }}>
-              rootednyc.tsingliu.info
+              https://rootednyc.vercel.app/
             </div>
           </div>
-          {/* App content — shifted left so the right side of the app is visible */}
-          <div className="relative bg-white overflow-hidden" style={{ height: "calc(100% - 34px)" }}>
-            <div style={{
-              transform: "scale(0.5)",
-              transformOrigin: "top right",
-              width: "200%",
-              height: "200%",
-              pointerEvents: "none",
-              position: "absolute",
-              top: 0,
-              right: 0,
-            }}>
-              <MainApp />
-            </div>
+          <div className="relative bg-[#e8e8e8] overflow-hidden" style={{ height: "calc(100% - 34px)" }}>
+            <img
+              src="/landing/explore-preview.jpg"
+              alt="Rooted NYC explore map showing Elizabeth Street Garden"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              style={{ objectPosition: "32% 50%" }}
+            />
           </div>
         </div>
       </div>

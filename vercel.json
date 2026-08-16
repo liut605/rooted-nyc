@@ -1,14 +1,13 @@
 {
   "framework": "vite",
-  "buildCommand": "npx vite build",
+  "buildCommand": "npx vite build && npm run build:api",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
   ],
   "functions": {
-    "api/index.ts": {
-      "maxDuration": 10,
-      "includeFiles": "src/data/gardenVisuals.generated.json"
+    "api/index.js": {
+      "maxDuration": 10
     }
   }
 }

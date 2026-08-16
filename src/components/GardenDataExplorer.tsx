@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import {
   Garden,
@@ -10,6 +10,11 @@ import { GardenMapHandle, GardenNetworkTab } from "./GardenNetworkTab";
 import { GardenProfileOverlay } from "./GardenProfileOverlay";
 import { ReportModal } from "./ReportModal";
 import { BrutalSelect } from "./BrutalSelect";
+import {
+  filterEnrichedGardens,
+  loadEnrichedGardens,
+} from "../services/loadGardens";
+import { getGardenVisualsForClient } from "../services/gardenVisualsClient";
 
 type ExplorerGarden = Garden & { resilience: GardenResilienceScore };
 
@@ -24,7 +29,7 @@ export const GardenDataExplorer: React.FC<{
   const mapRef = useRef<GardenMapHandle>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [gardens, setGardens] = useState<ExplorerGarden[]>([]);
+  const [allGardens, setAllGardens] = useState<ExplorerGarden[]>([]);
   const [selectedBorough, setSelectedBorough] = useState("All");
   const [selectedResilience, setSelectedResilience] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,46 +59,38 @@ export const GardenDataExplorer: React.FC<{
   useEffect(() => () => clearHoverHideTimer(), []);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (selectedBorough !== "All") params.append("borough", selectedBorough);
-    if (selectedResilience !== "All")
-      params.append("resilienceLevel", selectedResilience);
-    if (searchQuery) params.append("search", searchQuery);
-    params.append("limit", "2000");
-
-    fetch(`/api/gardens?${params.toString()}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`Gardens API ${res.status}`);
-        }
-        return res.json();
+    let cancelled = false;
+    loadEnrichedGardens()
+      .then((loaded) => {
+        if (!cancelled) setAllGardens(loaded);
       })
-      .then((data) => setGardens(data.gardens || []))
       .catch((err) => console.error("Failed to fetch gardens:", err));
-  }, [selectedBorough, selectedResilience, searchQuery]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const gardens = useMemo(
+    () =>
+      filterEnrichedGardens(allGardens, {
+        borough: selectedBorough,
+        resilienceLevel: selectedResilience,
+        search: searchQuery,
+      }),
+    [allGardens, selectedBorough, selectedResilience, searchQuery],
+  );
 
   useEffect(() => {
     if (!openGardenId) return;
-    const found = gardens.find(
+    const found = allGardens.find(
       (garden) => garden.id === openGardenId || garden.bbl === openGardenId,
     );
     if (found) {
       setPreviewGarden(found);
       setProfileOpen(false);
       mapRef.current?.flyToGarden(found, 16);
-      return;
     }
-    fetch(`/api/gardens/${openGardenId}`)
-      .then((res) => res.json())
-      .then((garden) => {
-        if (garden?.id && garden.resilience) {
-          setPreviewGarden(garden);
-          setProfileOpen(false);
-          mapRef.current?.flyToGarden(garden, 16);
-        }
-      })
-      .catch((err) => console.error("Failed to open garden from Learn:", err));
-  }, [openGardenId, gardens]);
+  }, [openGardenId, allGardens]);
 
   useEffect(() => {
     const visualGarden = (!profileOpen && hoveredGarden) || previewGarden;
@@ -102,32 +99,17 @@ export const GardenDataExplorer: React.FC<{
       setPreviewVisuals([]);
       return;
     }
-    let cancelled = false;
     const fallback =
       visualGarden.id === "MGT056" ||
       /elizabeth\s+street/i.test(visualGarden.name)
         ? "/figma-map/esg-header.png"
         : null;
-
-    fetch(`/api/gardens/${encodeURIComponent(visualGarden.id)}/visuals`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        const visuals: GardenVisual[] = data.visuals || [];
-        setPreviewVisuals(visuals);
-        const url = visuals[0]?.thumbUrl || visuals[0]?.url || fallback;
-        setPreviewImage(url);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPreviewVisuals([]);
-          setPreviewImage(fallback);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    const visuals = getGardenVisualsForClient(
+      visualGarden.id,
+      visualGarden.propID ? [visualGarden.propID] : [],
+    );
+    setPreviewVisuals(visuals);
+    setPreviewImage(visuals[0]?.thumbUrl || visuals[0]?.url || fallback);
   }, [
     profileOpen,
     hoveredGarden?.id,

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Garden, GardenResilienceScore, PublicAction } from '../types';
 import { Megaphone, Users, FileText, AlertTriangle, Check, ShieldAlert, HeartHandshake, Sparkles, Send, Copy, ThumbsUp } from 'lucide-react';
 
+import { loadEnrichedGardens } from '../services/loadGardens';
+
 export const PublicActionCenter: React.FC = () => {
   const [gardens, setGardens] = useState<(Garden & { resilience: GardenResilienceScore })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,10 +22,13 @@ export const PublicActionCenter: React.FC = () => {
   const fetchLowResilienceGardens = async () => {
     try {
       setLoading(true);
-      // Fetch gardens sorted by lowest resilience score first
-      const res = await fetch(`/api/gardens?sortBy=${sortBy}&limit=60`);
-      const data = await res.json();
-      setGardens(data.gardens || []);
+      const loaded = await loadEnrichedGardens();
+      const sorted = [...loaded].sort((a, b) =>
+        sortBy === 'score_asc'
+          ? a.resilience.score - b.resilience.score
+          : b.resilience.score - a.resilience.score
+      );
+      setGardens(sorted.slice(0, 60));
     } catch (err) {
       console.error('Failed to fetch action center gardens:', err);
     } finally {

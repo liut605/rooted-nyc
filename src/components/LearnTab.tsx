@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Garden, GardenResilienceScore, DensityLevel } from '../types';
 import { BookOpen, ArrowRight, Landmark, Scale, Building2, Users } from 'lucide-react';
+import { loadEnrichedGardens } from '../services/loadGardens';
 
 type EnrichedGarden = Garden & { resilience: GardenResilienceScore };
 
@@ -55,9 +56,8 @@ export const LearnTab: React.FC<LearnTabProps> = ({ focusSectionId, onOpenGarden
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/gardens?limit=2000')
-      .then((res) => res.json())
-      .then((data) => setGardens(data.gardens || []))
+    loadEnrichedGardens()
+      .then((data) => setGardens(data))
       .catch((err) => console.error('Failed to load gardens for Learn tab:', err))
       .finally(() => setLoading(false));
   }, []);
