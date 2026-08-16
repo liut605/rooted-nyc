@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@source "../nyc-rooted-landing/src/**/*.{ts,tsx}";
+
+.leaflet-container {
+  font-family: Inter, sans-serif;
+  background: #e8e8e8;
+}
+
+.leaflet-bottom.leaflet-right {
+  bottom: 88px;
+}
+
+.esg-plan-overlay {
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  filter: contrast(1.08) saturate(1.15);
+}

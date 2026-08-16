@@ -1,0 +1,35 @@
+[
+  {
+    "id": "REP-001",
+    "gardenId": "M003",
+    "timestamp": "2026-08-14T14:16:00.067Z",
+    "reporterRole": "Garden Steward",
+    "threatCategory": "Site Visit / Surveyors Seen",
+    "title": "City surveyors spotted taking lot measurements",
+    "description": "Two land surveyors with NYC HPD badges were measuring the east fence boundary on Wednesday morning and asking about parcel access.",
+    "verificationCount": 4,
+    "isVerified": true
+  },
+  {
+    "id": "REP-002",
+    "gardenId": "B002",
+    "timestamp": "2026-08-11T14:16:00.067Z",
+    "reporterRole": "Neighbor",
+    "threatCategory": "Real Estate Listing / RFP",
+    "title": "Landlord listed adjacent lot on LoopNet",
+    "description": "Private lot owner listed 354 Stockton St as potential residential teardown development assemblage.",
+    "verificationCount": 8,
+    "isVerified": true
+  },
+  {
+    "id": "REP-003",
+    "gardenId": "X001",
+    "timestamp": "2026-08-16T02:16:00.067Z",
+    "reporterRole": "Community Board Member",
+    "threatCategory": "Rezoning / ULURP Mention",
+    "title": "Mott Haven Rezoning Study discussed in CB1 Land Use agenda",
+    "description": "Community Board 1 Land Use subcommittee agenda lists E 138th St parcels for affordable housing upzoning review.",
+    "verificationCount": 3,
+    "isVerified": false
+  }
+]
