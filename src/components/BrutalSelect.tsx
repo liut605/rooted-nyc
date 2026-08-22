@@ -49,7 +49,7 @@ export const BrutalSelect: React.FC<{
           fullWidth ? 'w-full' : ''
         } ${open ? 'is-pressed' : ''} ${className}`}
       >
-        <span className="flex-1 text-left font-normal whitespace-nowrap">{selected?.label}</span>
+        <span className="flex-1 text-left font-normal whitespace-nowrap overflow-hidden text-ellipsis">{selected?.label}</span>
         <img
           src="/figma-map/chevron.svg"
           alt=""

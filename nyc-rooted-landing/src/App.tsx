@@ -1,667 +1,843 @@
-// Rooted NYC — Landing Page (v2)
-import { useState, useEffect, useRef, useCallback, type ReactElement } from "react";
-import VizCards from "./imports/Viz";
-
-// ─── Theme ────────────────────────────────────────────────────────────────
-
-const theme = {
-  bg: "#14291E",
-  text: "#F0E8D5",
-  accent: "#C8A84B",
-  accentText: "#C8A84B",
-  muted: "rgba(240,232,213,0.45)",
-  indicatorBg: "rgba(240,232,213,0.18)",
-  indicatorActive: "#C8A84B",
-  cardGreen: "#d8f6e7",
-};
-
-// ─── Cadastral map background ─────────────────────────────────────────────
-
-interface Block {
-  pts: [number, number][];
-  dir: "h" | "v";
-  lots: number;
-  isGarden?: boolean;
-}
-
-function HatchedBlock({ pts, dir, lots, isGarden = false, opacity = 1 }:
-  { pts: [number,number][]; dir:"h"|"v"; lots:number; isGarden?:boolean; opacity?:number; key?: number }) {
-  const ptStr = pts.map(([x,y]) => `${x},${y}`).join(" ");
-  const id = `clip-${pts[0][0]}-${pts[0][1]}`;
-  const xs = pts.map(p => p[0]);
-  const ys = pts.map(p => p[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const w = maxX - minX, h = maxY - minY;
-  const strokeColor = isGarden ? theme.cardGreen : theme.accent;
-  const fillOp = isGarden ? 0.14 * opacity : 0.055 * opacity;
-  const strokeOp = isGarden ? 0.6 * opacity : 0.22 * opacity;
-  const hatchOp = isGarden ? 0.18 * opacity : 0.1 * opacity;
-  const lines: ReactElement[] = [];
-  if (dir === "v") {
-    for (let i = 1; i < lots; i++) {
-      const x = minX + (w * i) / lots;
-      lines.push(<line key={i} x1={x} y1={minY} x2={x} y2={maxY}
-        stroke={strokeColor} strokeWidth="0.5" opacity={hatchOp} clipPath={`url(#${id})`} />);
-    }
-  } else {
-    for (let i = 1; i < lots; i++) {
-      const y = minY + (h * i) / lots;
-      lines.push(<line key={i} x1={minX} y1={y} x2={maxX} y2={y}
-        stroke={strokeColor} strokeWidth="0.5" opacity={hatchOp} clipPath={`url(#${id})`} />);
-    }
-  }
-  return (
-    <g>
-      <defs><clipPath id={id}><polygon points={ptStr} /></clipPath></defs>
-      <polygon points={ptStr} fill={strokeColor} opacity={fillOp} />
-      <polygon points={ptStr} fill="none" stroke={strokeColor}
-        strokeWidth={isGarden ? "1.1" : "0.7"} opacity={strokeOp} />
-      {lines}
-    </g>
-  );
-}
-
-const CADASTRAL_BLOCKS: Block[] = [
-  { pts: [[60,60],[260,60],[260,170],[60,170]], dir:"v", lots:12 },
-  { pts: [[280,55],[420,55],[420,175],[280,175]], dir:"v", lots:8 },
-  { pts: [[440,58],[620,58],[620,180],[440,180]], dir:"v", lots:10 },
-  { pts: [[640,52],[820,52],[820,172],[640,172]], dir:"v", lots:11 },
-  { pts: [[840,60],[1000,60],[1000,168],[840,168]], dir:"v", lots:9 },
-  { pts: [[58,200],[200,200],[200,340],[58,340]], dir:"v", lots:8 },
-  { pts: [[220,198],[380,198],[380,345],[220,345]], dir:"v", lots:9 },
-  { pts: [[400,195],[640,195],[640,350],[400,350]], dir:"v", lots:14 },
-  { pts: [[500,210],[620,210],[620,335],[500,335]], dir:"h", lots:6 },
-  { pts: [[660,202],[840,202],[840,348],[660,348]], dir:"v", lots:10 },
-  { pts: [[860,200],[1010,200],[1010,350],[860,350]], dir:"v", lots:8 },
-  { pts: [[55,368],[190,368],[190,500],[55,500]], dir:"v", lots:7 },
-  { pts: [[210,372],[350,372],[350,505],[210,505]], dir:"v", lots:8 },
-  { pts: [[372,370],[510,370],[510,502],[372,502]], dir:"h", lots:5 },
-  { pts: [[530,368],[700,362],[700,498],[530,504]], dir:"v", lots:9 },
-  { pts: [[720,370],[870,370],[870,500],[720,500]], dir:"v", lots:8 },
-  { pts: [[892,366],[1012,366],[1012,504],[892,504]], dir:"v", lots:6 },
-  { pts: [[60,524],[210,524],[210,660],[60,660]], dir:"v", lots:8 },
-  { pts: [[232,520],[390,520],[390,658],[232,658]], dir:"v", lots:9 },
-  { pts: [[412,522],[570,522],[570,660],[412,660]], dir:"v", lots:9 },
-  { pts: [[592,518],[740,518],[740,658],[592,658]], dir:"v", lots:8 },
-  { pts: [[762,524],[910,524],[910,660],[762,660]], dir:"v", lots:8 },
-  { pts: [[932,520],[1060,520],[1060,660],[932,660]], dir:"v", lots:7 },
-  { pts: [[155,200],[218,200],[218,340],[155,340]], dir:"h", lots:7 },
-  { pts: [[842,368],[892,368],[892,504],[842,504]], dir:"h", lots:6 },
-];
-
-function CadastralBg() {
-  return (
-    <svg
-      viewBox="0 0 1100 800"
-      className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-      style={{ transform: "rotate(-9deg) scale(1.18)", transformOrigin: "55% 45%" }}
-    >
-      {[192,380,520,690].map((y,i) => (
-        <line key={`av${i}`} x1="0" y1={y} x2="1100" y2={y}
-          stroke={theme.accent} strokeWidth="1.4" opacity="0.16" />
-      ))}
-      {[240,398,530,648,850].map((x,i) => (
-        <line key={`st${i}`} x1={x} y1="0" x2={x} y2="800"
-          stroke={theme.accent} strokeWidth="1.2" opacity="0.14" />
-      ))}
-      {[192,345,365,515,522,665,672].map((y,i) => (
-        <line key={`cs${i}`} x1="0" y1={y} x2="1100" y2={y}
-          stroke={theme.accent} strokeWidth="0.5" opacity="0.08" />
-      ))}
-      <line x1="200" y1="0" x2="750" y2="800" stroke={theme.accent} strokeWidth="2" opacity="0.12" />
-      <line x1="820" y1="0" x2="1100" y2="480" stroke={theme.accent} strokeWidth="1.2" opacity="0.09" />
-      {CADASTRAL_BLOCKS.map((b,i) => (
-        <HatchedBlock key={i} {...b} opacity={0.85 + (i % 3) * 0.05} />
-      ))}
-    </svg>
-  );
-}
-
-// ─── Slide 2 threat background — "Erasure" ───────────────────────────────
-
-// "Erasure": blocks being crossed out and dissolved, some replaced by solid voids
-function ThreatBg2() {
-  const erased = [1, 2, 6, 7, 13, 14, 17, 18, 20];
-  const voided = [3, 9, 11, 15, 21];
-  return (
-    <svg viewBox="0 0 1100 800" className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-      style={{ transform: "rotate(-9deg) scale(1.18)", transformOrigin: "55% 45%" }}>
-      {[192,380,520,690].map((y,i) => (
-        <line key={`av${i}`} x1="0" y1={y} x2="1100" y2={y}
-          stroke={theme.accent} strokeWidth="1.4" opacity="0.13" />
-      ))}
-      {[240,398,530,648,850].map((x,i) => (
-        <line key={`st${i}`} x1={x} y1="0" x2={x} y2="800"
-          stroke={theme.accent} strokeWidth="1.0" opacity="0.11" />
-      ))}
-      <line x1="200" y1="0" x2="750" y2="800" stroke={theme.accent} strokeWidth="1.5" opacity="0.10" />
-      {CADASTRAL_BLOCKS.map((b,i) => {
-        const pts = b.pts.map(([x,y]) => `${x},${y}`).join(" ");
-        const xs = b.pts.map(p=>p[0]), ys = b.pts.map(p=>p[1]);
-        const x1=Math.min(...xs), y1=Math.min(...ys), x2=Math.max(...xs), y2=Math.max(...ys);
-        if (voided.includes(i)) {
-          // Solid dark void — the block has been "built over"
-          return (
-            <g key={i}>
-              <polygon points={pts} fill={theme.accent} opacity="0.18" />
-              <polygon points={pts} fill="none" stroke={theme.accent} strokeWidth="1.2" opacity="0.35" />
-              {/* dense hatching */}
-              {Array.from({length:20},(_,j)=>(
-                <line key={j} x1={x1} y1={y1+(y2-y1)*j/20} x2={x2} y2={y1+(y2-y1)*j/20}
-                  stroke={theme.accent} strokeWidth="0.8" opacity="0.12" />
-              ))}
-            </g>
-          );
-        }
-        if (erased.includes(i)) {
-          // Ghost outline + X cross-out
-          return (
-            <g key={i}>
-              <polygon points={pts} fill="none" stroke={theme.accent}
-                strokeWidth="0.6" strokeDasharray="4 5" opacity="0.14" />
-              <line x1={x1+4} y1={y1+4} x2={x2-4} y2={y2-4}
-                stroke={theme.accent} strokeWidth="0.9" opacity="0.16" />
-              <line x1={x2-4} y1={y1+4} x2={x1+4} y2={y2-4}
-                stroke={theme.accent} strokeWidth="0.9" opacity="0.16" />
-            </g>
-          );
-        }
-        return <HatchedBlock key={i} {...b} opacity={0.75} />;
-      })}
-    </svg>
-  );
-}
-
-// ─── Shared font size for body text across all slides ─────────────────────
-const BODY_SIZE = "clamp(2rem, 3.8vw, 3.4rem)";
-const SUB_SIZE  = "clamp(1rem, 1.6vw, 1.4rem)";
-
-// ─── Slides ───────────────────────────────────────────────────────────────
-
-function Slide1({ onSkip }: { onSkip?: () => void }) {
-  return (
-    <div className="w-full h-full flex flex-col justify-end px-16 pb-36 relative overflow-hidden">
-      <CadastralBg />
-      <button
-        type="button"
-        className="absolute top-8 right-8 z-20 font-medium"
-        style={{
-          fontFamily: "Inter, sans-serif",
-          fontSize: "0.95rem",
-          color: "#14291E",
-          backgroundColor: "#F0E8D5",
-          border: "1.5px solid #3f3f3f",
-          borderRadius: "10px",
-          padding: "10px 22px",
-          cursor: "pointer",
-          letterSpacing: "-0.02em",
-          boxShadow: "4px 4px 0px #3f3f3f",
-          transition: "transform 0.12s ease, box-shadow 0.12s ease",
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.transform = "translate(-2px,-2px)";
-          e.currentTarget.style.boxShadow = "6px 6px 0px #3f3f3f";
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.transform = "";
-          e.currentTarget.style.boxShadow = "4px 4px 0px #3f3f3f";
-        }}
-        onMouseDown={e => {
-          e.currentTarget.style.transform = "translate(2px,2px)";
-          e.currentTarget.style.boxShadow = "2px 2px 0px #3f3f3f";
-        }}
-        onMouseUp={e => {
-          e.currentTarget.style.transform = "translate(-2px,-2px)";
-          e.currentTarget.style.boxShadow = "6px 6px 0px #3f3f3f";
-        }}
-        onClick={() => onSkip?.()}
-      >
-        Skip
-      </button>
-      <div className="relative z-10 max-w-4xl">
-        <div className="text-xs font-bold tracking-[0.22em] mb-8 uppercase"
-          style={{ color: theme.accentText, fontFamily: "Inter, sans-serif" }}>
-          Rooted NYC
-        </div>
-        {/* Dominant headline */}
-        <h1 className="font-black leading-[1.0]"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: BODY_SIZE,
-            color: theme.text, letterSpacing: "-0.03em" }}>
-          NYC is home to{" "}
-          <span style={{ color: theme.accentText }}>600+</span>
-          {" "}community gardens.
-        </h1>
-        {/* Secondary copy — clearly smaller and muted */}
-        <p className="font-medium leading-[1.5] mt-5"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: SUB_SIZE,
-            color: theme.muted, maxWidth: "34rem" }}>
-          They grow more than food — they create green space, community,
-          and a living record of neighborhood history.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function Slide2() {
-  return (
-    <div className="w-full h-full flex flex-col justify-end px-16 pb-36 relative overflow-hidden">
-      <ThreatBg2 />
-      <div className="relative z-10 max-w-4xl">
-        <p className="font-black leading-[1.03]"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: BODY_SIZE,
-            color: theme.text, letterSpacing: "-0.03em" }}>
-          Yet for decades, gardens have been fighting to stay{" "}
-          <span style={{ color: theme.accentText, textDecoration: "underline",
-            textDecorationColor: `${theme.accent}55`, textUnderlineOffset: "6px" }}>
-            rooted
-          </span>
-        </p>
-        <p className="font-medium mt-5 leading-[1.5]"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: SUB_SIZE,
-            color: theme.muted, maxWidth: "34rem" }}>
-          with hundreds of threats from development, displacement,
-          and changing land priorities.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function Slide3() {
-  return (
-    <div className="w-full h-full grid" style={{ gridTemplateColumns: "45% 55%" }}>
-      {/* Left: text — plain dark, no grid bg */}
-      <div className="flex flex-col justify-center px-14 py-16">
-        <p className="font-black leading-[1.03]"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: BODY_SIZE,
-            color: theme.text, letterSpacing: "-0.03em" }}>
-          That&apos;s why we built{" "}
-          <span style={{ color: theme.accentText }}>Rooted NYC:</span>
-        </p>
-        <p className="font-medium leading-[1.5] mt-5"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: SUB_SIZE,
-            color: theme.muted, maxWidth: "28rem" }}>
-          to make that resilience visible by measuring the conditions
-          that help each garden endure.
-        </p>
-      </div>
-      {/* Right: live app screenshot */}
-      <div className="relative flex items-center justify-center py-8 pr-10 overflow-hidden">
-        <div className="relative w-full h-full rounded-xl overflow-hidden"
-          style={{ boxShadow: "0 0 0 1px rgba(200,168,75,0.18), 0 24px 64px rgba(0,0,0,0.55)" }}>
-          {/* Browser chrome */}
-          <div className="flex items-center gap-1.5 px-4 py-2.5"
-            style={{ background: "#1e3828", borderBottom: "1px solid rgba(200,168,75,0.12)", flexShrink: 0 }}>
-            {[1,2,3].map(i => (
-              <div key={i} className="w-2.5 h-2.5 rounded-full"
-                style={{ background: "rgba(240,232,213,0.15)" }} />
-            ))}
-            <div className="ml-3 px-3 py-0.5 rounded"
-              style={{ background: "rgba(240,232,213,0.06)", color: "rgba(240,232,213,0.38)",
-                fontFamily: "Inter, sans-serif", fontSize: "0.65rem" }}>
-              https://rootednyc.vercel.app/
-            </div>
-          </div>
-          <div className="relative bg-[#e8e8e8] overflow-hidden" style={{ height: "calc(100% - 34px)" }}>
-            <img
-              src="/landing/explore-preview.jpg"
-              alt="Rooted NYC explore map showing Elizabeth Street Garden"
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-              style={{ objectPosition: "32% 50%" }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Slide 4 illustrations — 4 style options ─────────────────────────────
-
-type Concept = "root" | "growth" | "community" | "flourish";
-const acc = "#C8A84B";
-
-
-// Style B: Botanical Lines — delicate fine-line organic illustration
-function BotanicalIllo({ concept }: { concept: Concept }) {
-  if (concept === "root") return (
-    <svg viewBox="0 0 100 100" fill="none" width="100%" height="100%">
-      <path d="M50 18 C50 18 50 45 50 52" stroke={acc} strokeWidth="1.2" strokeLinecap="round"/>
-      <path d="M50 38 C44 30 36 28 30 32" stroke={acc} strokeWidth="1" strokeLinecap="round"/>
-      <path d="M50 44 C56 36 64 34 70 38" stroke={acc} strokeWidth="1" strokeLinecap="round"/>
-      <path d="M50 52 C45 60 38 68 30 72 C26 74 20 74 18 80" stroke={acc} strokeWidth="1" strokeLinecap="round" fill="none"/>
-      <path d="M50 52 C50 62 50 75 50 88" stroke={acc} strokeWidth="1" strokeLinecap="round"/>
-      <path d="M50 52 C55 60 62 68 70 72 C74 74 80 74 82 80" stroke={acc} strokeWidth="1" strokeLinecap="round" fill="none"/>
-      <path d="M30 72 C26 78 22 82 18 88" stroke={acc} strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
-      <path d="M70 72 C74 78 78 82 82 88" stroke={acc} strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
-      <circle cx="50" cy="16" r="3" stroke={acc} strokeWidth="1" fill={`${acc}18`}/>
-      <line x1="14" y1="52" x2="86" y2="52" stroke={acc} strokeWidth="0.7" opacity="0.25" strokeDasharray="3 3"/>
-      {[22,36,50,64,78].map((x,i) => (
-        <line key={i} x1={x} y1="50" x2={x} y2="54" stroke={acc} strokeWidth="0.7" opacity="0.3"/>
-      ))}
-    </svg>
-  );
-  if (concept === "growth") return (
-    <svg viewBox="0 0 100 100" fill="none" width="100%" height="100%">
-      <path d="M50 88 C50 88 50 35 50 22" stroke={acc} strokeWidth="1.2" strokeLinecap="round"/>
-      <path d="M50 22 L45 28 M50 22 L55 28" stroke={acc} strokeWidth="1.2" strokeLinecap="round"/>
-      <path d="M50 50 C44 46 34 40 30 30 C38 28 50 38 50 50Z" stroke={acc} strokeWidth="0.9" fill={`${acc}14`}/>
-      <path d="M50 50 C56 46 66 40 70 30 C62 28 50 38 50 50Z" stroke={acc} strokeWidth="0.9" fill={`${acc}10`}/>
-      <path d="M50 64 C44 60 36 56 32 46 C40 44 50 54 50 64Z" stroke={acc} strokeWidth="0.9" fill={`${acc}10`}/>
-      <path d="M50 64 C56 60 64 56 68 46 C60 44 50 54 50 64Z" stroke={acc} strokeWidth="0.9" fill={`${acc}0c`}/>
-      <line x1="38" y1="32" x2="42" y2="36" stroke={acc} strokeWidth="0.7" opacity="0.4"/>
-      <line x1="62" y1="32" x2="58" y2="36" stroke={acc} strokeWidth="0.7" opacity="0.4"/>
-    </svg>
-  );
-  if (concept === "community") return (
-    <svg viewBox="0 0 100 100" fill="none" width="100%" height="100%">
-      <path d="M50 20 C50 20 44 26 44 32 C44 38 50 40 50 40 C50 40 56 38 56 32 C56 26 50 20 50 20Z"
-        stroke={acc} strokeWidth="1" fill={`${acc}14`}/>
-      <path d="M50 40 C50 52 46 58 40 62 C36 64 30 64 28 70" stroke={acc} strokeWidth="1" strokeLinecap="round"/>
-      <path d="M50 40 C50 52 54 58 60 62 C64 64 70 64 72 70" stroke={acc} strokeWidth="1" strokeLinecap="round"/>
-      <circle cx="26" cy="74" r="7" stroke={acc} strokeWidth="1" fill={`${acc}12`}/>
-      <circle cx="74" cy="74" r="7" stroke={acc} strokeWidth="1" fill={`${acc}12`}/>
-      <circle cx="50" cy="80" r="7" stroke={acc} strokeWidth="1" fill={`${acc}10`}/>
-      <path d="M50 40 C50 60 50 72 50 73" stroke={acc} strokeWidth="0.8" strokeLinecap="round"/>
-      {/* small connecting arcs */}
-      <path d="M33 74 C40 68 60 68 67 74" stroke={acc} strokeWidth="0.7" opacity="0.35" fill="none"/>
-    </svg>
-  );
-  return (
-    <svg viewBox="0 0 100 100" fill="none" width="100%" height="100%">
-      <circle cx="50" cy="50" r="12" stroke={acc} strokeWidth="1.2" fill={`${acc}1a`}/>
-      {[0,51.4,102.8,154.2,205.6,257,308.4].map((deg, i) => {
-        const rad = (deg * Math.PI) / 180;
-        const r1 = 18, r2 = 34;
-        const x1 = 50 + r1*Math.cos(rad), y1 = 50 + r1*Math.sin(rad);
-        const cx1 = 50 + r2*0.6*Math.cos(rad-0.6), cy1 = 50 + r2*0.6*Math.sin(rad-0.6);
-        const x2 = 50 + r2*Math.cos(rad), y2 = 50 + r2*Math.sin(rad);
-        return (
-          <g key={i}>
-            <path d={`M${x1} ${y1} Q${cx1} ${cy1} ${x2} ${y2}`} stroke={acc} strokeWidth="1" fill="none"/>
-            <ellipse cx={x2} cy={y2} rx="5" ry="3.5"
-              transform={`rotate(${deg}, ${x2}, ${y2})`}
-              stroke={acc} strokeWidth="0.9" fill={`${acc}14`}/>
-          </g>
-        );
-      })}
-      {/* inner detail lines */}
-      {[0,60,120,180,240,300].map((deg, i) => {
-        const rad = (deg * Math.PI) / 180;
-        return <line key={i} x1={50+6*Math.cos(rad)} y1={50+6*Math.sin(rad)}
-          x2={50+12*Math.cos(rad)} y2={50+12*Math.sin(rad)}
-          stroke={acc} strokeWidth="0.7" opacity="0.4"/>;
-      })}
-    </svg>
-  );
-}
-
-const DIMS: { concept: Concept; before: string; highlight: string; after: string }[] = [
-  { concept: "root",      before: "",    highlight: "Secure land",           after: " allows the garden to take root." },
-  { concept: "growth",    before: "",    highlight: "Supportive policies",   after: " help it grow." },
-  { concept: "flourish",  before: "A ",  highlight: "development buffer",    after: " gives it room to thrive." },
-  { concept: "community", before: "",    highlight: "Community stewardship", after: " keeps people invested in its future." },
-];
-
-function Slide4() {
-  return (
-    <div className="w-full h-full flex flex-col justify-center px-10 py-8 relative overflow-hidden">
-      <CadastralBg />
-      {/* Eyebrow */}
-      <div className="relative z-10 mb-6">
-        <p className="text-xs font-bold tracking-[0.22em] uppercase"
-          style={{ color: theme.accentText, fontFamily: "Inter, sans-serif" }}>
-          The Four Dimensions
-        </p>
-      </div>
-      {/* Horizontal 4-card row */}
-      <div className="relative z-10 grid gap-4" style={{ gridTemplateColumns: "repeat(4, 1fr)", flex: 1, maxHeight: "72%" }}>
-        {DIMS.map(({ concept, before, highlight, after }, i) => (
-          <div key={i} className="flex flex-col" style={{
-            background: "rgba(20,41,30,0.72)", backdropFilter: "blur(4px)",
-            border: "1px solid rgba(200,168,75,0.18)",
-            borderRadius: "10px", padding: "1.5rem 1.4rem 1.6rem",
-          }}>
-            {/* Botanical illustration */}
-            <div className="flex-1 flex items-center justify-center" style={{ minHeight: 0, maxHeight: "55%" }}>
-              <div style={{ width: "min(100%, 130px)", aspectRatio: "1" }}>
-                <BotanicalIllo concept={concept} />
-              </div>
-            </div>
-            {/* Text with highlighted phrase */}
-            <p className="mt-4 font-medium leading-[1.45]"
-              style={{ fontFamily: "Inter, sans-serif", fontSize: SUB_SIZE, color: theme.text }}>
-              {before}
-              <span style={{ color: theme.accentText, fontWeight: 700 }}>{highlight}</span>
-              {after}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Slide5() {
-  return (
-    <div className="w-full h-full grid" style={{ gridTemplateColumns: "40% 60%" }}>
-      <div className="flex flex-col justify-center px-14 py-16">
-        <p className="font-black leading-[1.03]"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: BODY_SIZE,
-            color: theme.text, letterSpacing: "-0.03em" }}>
-          Together, these dimensions shape a garden&apos;s{" "}
-          <span style={{ color: theme.accentText }}>resilience.</span>
-        </p>
-      </div>
-      <div className="flex items-center justify-center pr-10 py-10 overflow-hidden">
-        <div style={{ transform: "scale(0.88)", transformOrigin: "center" }}>
-          <VizCards />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Slide6({ onGetStarted }: { onGetStarted?: () => void }) {
-  return (
-    <div className="w-full h-full flex flex-col justify-end px-16 pb-36 relative overflow-hidden">
-      <CadastralBg />
-      <div className="relative z-10 max-w-2xl">
-        <p className="font-black leading-[1.03]"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: BODY_SIZE,
-            color: theme.text, letterSpacing: "-0.03em" }}>
-          A score only matters if it leads to{" "}
-          <span style={{ color: theme.accentText }}>action.</span>
-        </p>
-        <p className="font-medium leading-[1.5] mt-5"
-          style={{ fontFamily: "Inter, sans-serif", fontSize: SUB_SIZE, color: theme.muted }}>
-          Every one of us can help protect NYC&apos;s community gardens,
-          and we&apos;ll show you where to start.
-        </p>
-        <button
-          type="button"
-          className="mt-10 font-medium"
-          style={{
-            fontFamily: "Inter, sans-serif", fontSize: "1.05rem",
-            color: "#14291E", backgroundColor: "#F0E8D5",
-            border: "1.5px solid #3f3f3f", borderRadius: "10px",
-            padding: "14px 40px", cursor: "pointer", letterSpacing: "-0.02em",
-            boxShadow: "4px 4px 0px #3f3f3f",
-            transition: "transform 0.12s ease, box-shadow 0.12s ease",
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = "translate(-2px,-2px)";
-            e.currentTarget.style.boxShadow = "6px 6px 0px #3f3f3f";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = "";
-            e.currentTarget.style.boxShadow = "4px 4px 0px #3f3f3f";
-          }}
-          onMouseDown={e => {
-            e.currentTarget.style.transform = "translate(2px,2px)";
-            e.currentTarget.style.boxShadow = "2px 2px 0px #3f3f3f";
-          }}
-          onMouseUp={e => {
-            e.currentTarget.style.transform = "translate(-2px,-2px)";
-            e.currentTarget.style.boxShadow = "6px 6px 0px #3f3f3f";
-          }}
-          onClick={() => onGetStarted?.()}
-        >
-          Let&apos;s get started!
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main App ─────────────────────────────────────────────────────────────
-
-const TOTAL = 6;
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useMotionValueEvent, useScroll } from "motion/react";
 
 export interface LandingPageProps {
   onGetStarted?: () => void;
   resetNonce?: number;
 }
 
-export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) {
-  const [slide, setSlide] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const [direction, setDirection] = useState<"down" | "up">("down");
-  const locked = useRef(false);
-  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+const MINT = "#f4fff4";
+const GREEN = "#306a4e";
 
-  // Release the lock only after scroll events have been quiet for 1.2s.
-  // Every new wheel event while locked resets the timer, so a long swipe
-  // can't break through — the cooldown extends for as long as the gesture lasts.
-  const scheduleLockRelease = useCallback(() => {
-    if (releaseTimer.current) clearTimeout(releaseTimer.current);
-    releaseTimer.current = setTimeout(() => {
-      locked.current = false;
-    }, 800);
+const MAP_DELAYS = [180, 620] as const;
+const ACTION_DELAYS = [120, 560, 1040] as const;
+
+const PRELOAD = [
+  "/landing/art-garden.png",
+  "/landing/art-garden-people.png",
+  "/landing/art-skyline.png",
+  "/landing/art-buildings.png",
+  "/landing/art-buildings-more.png",
+  "/landing/art-buildings-tall.png",
+  "/landing/map-mockup.png",
+  "/landing/layer-1-soil.png",
+  "/landing/layer-2-water.png",
+  "/landing/layer-3-community.png",
+  "/landing/layer-4-sun.png",
+  "/landing/ellipse-mint.svg",
+];
+
+const H1 = "clamp(2.05rem, 5.1vw, 4.35rem)";
+const H2 = "clamp(1.05rem, 2.15vw, 1.9rem)";
+
+const STORY_VH = 1400;
+
+const T = {
+  people: 0.05,
+  threat: 0.12,
+  stripPlanters: 0.18,
+  stripGround: 0.21,
+  shadow: 0.22,
+  more: 0.30,
+  tall: 0.37,
+  zoom: 0.44,
+  map: 0.54,
+  layers: 0.62,
+  hands: 0.72,
+  action: 0.91,
+};
+
+function clamp(n: number, a = 0, b = 1) {
+  return Math.min(b, Math.max(a, n));
+}
+
+function span(p: number, a: number, b: number) {
+  if (b <= a) return p >= a ? 1 : 0;
+  return clamp((p - a) / (b - a));
+}
+
+function fade(p: number, inA: number, inB: number, outA: number, outB: number) {
+  if (p < inA) return 0;
+  if (p < inB) return span(p, inA, inB);
+  if (p < outA) return 1;
+  return 1 - span(p, outA, outB);
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+const FW = 1728;
+const FH = 1117;
+const PEACH_ART = { w: 1265, h: 743 };
+const ALIGN_DX = FW - PEACH_ART.w - 308;
+const SHADOW_NUDGE = 12;
+const SHADOW_MORE = { src: "/landing/art-buildings-more.png", x: 134 + ALIGN_DX + SHADOW_NUDGE, y: 374, w: 304, h: 743 };
+const SHADOW_TALL = { src: "/landing/art-buildings-tall.png", x: 493 + ALIGN_DX + SHADOW_NUDGE, y: 108, w: 434, h: 1009 };
+const SHADOW_INK = "#414141";
+const TALL_ZOOM = { x: 0.68, y: 0.32 };
+const HEADLINE_Y = 169;
+const SUB_Y = 434;
+const GROUND_H = 149;
+const HANDS_BOX = { x: 662, y: 131, w: 1369, h: 1290 };
+const ELLIPSE = { w: 1562, h: 1070 };
+const TOGETHER_S = 0.6;
+const TOGETHER_ARRIVE_T = 0.34;
+const TOGETHER_ISO_GONE_T = 0.44;
+const TOGETHER_HOLD_T = 0.64;
+const ELLIPSE_KF = [
+  { t: 0, s: 2.05 },
+  { t: TOGETHER_ARRIVE_T, s: TOGETHER_S },
+  { t: TOGETHER_HOLD_T, s: TOGETHER_S },
+  { t: 0.74, s: 0.52 },
+  { t: 0.88, s: 0.26 },
+  { t: 1, s: 0.08 },
+] as const;
+
+function ellipseAt(t: number) {
+  const k = ELLIPSE_KF;
+  let s: number;
+  if (t <= 0) s = k[0].s;
+  else if (t >= 1) s = k[k.length - 1].s;
+  else {
+    let i = 0;
+    while (i < k.length - 1 && t > k[i + 1].t) i += 1;
+    const a = k[i];
+    const b = k[i + 1];
+    const u = (t - a.t) / (b.t - a.t);
+    s = lerp(a.s, b.s, u);
+  }
+  const w = ELLIPSE.w * s;
+  const h = ELLIPSE.h * s;
+  return { x: FW - w, y: FH - h, w, h };
+}
+
+const SLAB_W = 587;
+const SUN_W = 458 / SLAB_W;
+
+const LAYERS = [
+  {
+    title: "Development buffers",
+    body: "gives the garden room to thrive.",
+    src: "/landing/layer-4-sun.png",
+    img: { w: 901, h: 341 },
+    width: SUN_W,
+    z: 3,
+  },
+  {
+    title: "Community stewardship",
+    body: "keeps people invested in its future.",
+    src: "/landing/layer-3-community.png",
+    img: { w: 1169, h: 901 },
+    width: 1,
+    z: 4,
+  },
+  {
+    title: "Supportive policies",
+    body: "help it grow.",
+    src: "/landing/layer-2-water.png",
+    img: { w: 1186, h: 559 },
+    width: 1,
+    z: 2,
+  },
+  {
+    title: "Secure land",
+    body: "allows it to take root.",
+    src: "/landing/layer-1-soil.png",
+    img: { w: 1186, h: 572 },
+    width: 1,
+    z: 1,
+  },
+] as const;
+
+function useEnterSteps(active: boolean, delays: readonly number[], forceAll: boolean) {
+  const [step, setStep] = useState(0);
+  const key = delays.join(",");
+  useEffect(() => {
+    const ms = key.split(",").map(Number);
+    if (!active) {
+      setStep(0);
+      return;
+    }
+    if (forceAll) {
+      setStep(ms.length);
+      return;
+    }
+    setStep(0);
+    const timers = ms.map((delay, i) =>
+      setTimeout(() => setStep(i + 1), delay),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [active, forceAll, key]);
+  return forceAll ? delays.length : step;
+}
+
+function coverFade(topY: number, textY: number, band = 70) {
+  if (topY >= textY + band) return 1;
+  if (topY <= textY) return 0;
+  return (topY - textY) / band;
+}
+
+function GrowingBuilding({
+  src,
+  box,
+  grow,
+  z,
+  opacity = 1,
+}: {
+  src: string;
+  box: { x: number; y: number; w: number; h: number };
+  grow: number;
+  z: number;
+  opacity?: number;
+}) {
+  if (grow <= 0.01 || opacity <= 0.01) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="absolute pointer-events-none select-none"
+      style={{
+        zIndex: z,
+        left: `${(box.x / FW) * 100}%`,
+        top: `${(box.y / FH) * 100}%`,
+        width: `${(box.w / FW) * 100}%`,
+        height: `${(box.h / FH) * 100}%`,
+        objectFit: "contain",
+        objectPosition: "bottom",
+        transform: `scaleY(${grow})`,
+        transformOrigin: "bottom center",
+        opacity,
+      }}
+    />
+  );
+}
+
+function buildingTop(box: { y: number; h: number }, grow: number) {
+  if (grow <= 0.01) return FH;
+  return box.y + box.h * (1 - grow);
+}
+
+function GardenArt({ src, opacity }: { src: string; opacity: number }) {
+  if (opacity <= 0.01) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="absolute right-0 bottom-0 z-[1] pointer-events-none select-none"
+      style={{
+        opacity,
+        width: `${(PEACH_ART.w / FW) * 100}%`,
+        height: `${(PEACH_ART.h / FH) * 100}%`,
+        objectFit: "contain",
+        objectPosition: "right bottom",
+      }}
+    />
+  );
+}
+
+function BrutalistButton({
+  children,
+  onClick,
+  className = "",
+}: {
+  children: string;
+  onClick?: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`nb-press border-2 border-[#3f3f3f] bg-[#fbf7ff] text-[#3f3f3f] font-medium tracking-[-0.05em] rounded-[10px] shadow-[4px_4px_0_0_#3f3f3f] ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: scrollRef });
+  const [p, setP] = useState(0);
+  const [introArt, setIntroArt] = useState(false);
+  const [introText, setIntroText] = useState(false);
+  const [hoverLayer, setHoverLayer] = useState<number | null>(null);
+  const textColRef = useRef<HTMLDivElement>(null);
+  const visualColRef = useRef<HTMLDivElement>(null);
+  const textRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const visualRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [visualTops, setVisualTops] = useState<number[]>(() => LAYERS.map(() => 0));
+
+  useMotionValueEvent(scrollYProgress, "change", (v) => setP(v));
+
+  useEffect(() => {
+    PRELOAD.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
   }, []);
 
-  const goTo = useCallback((next: number, dir: "down" | "up") => {
-    if (locked.current || next < 0 || next >= TOTAL) return;
-    locked.current = true;
-    setDirection(dir);
-    setVisible(false);
-    setTimeout(() => {
-      setSlide(next);
-      setVisible(true);
-    }, 320);
-    scheduleLockRelease();
-  }, [scheduleLockRelease]);
-
   useEffect(() => {
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      if (locked.current) {
-        // Keep extending the quiet-period timer while the gesture is still running
-        scheduleLockRelease();
-        return;
-      }
-      if (e.deltaY > 0) goTo(slide + 1, "down");
-      else if (e.deltaY < 0) goTo(slide - 1, "up");
-    };
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
-  }, [slide, goTo, scheduleLockRelease]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown" || e.key === "PageDown") goTo(slide + 1, "down");
-      if (e.key === "ArrowUp"   || e.key === "PageUp")   goTo(slide - 1, "up");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [slide, goTo]);
-
-  useEffect(() => {
-    let startY = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      startY = e.touches[0]?.clientY ?? 0;
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const endY = e.changedTouches[0]?.clientY ?? startY;
-      const delta = startY - endY;
-      if (Math.abs(delta) < 50) return;
-      if (delta > 0) goTo(slide + 1, "down");
-      else goTo(slide - 1, "up");
-    };
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    scrollRef.current?.scrollTo({ top: 0 });
+    setIntroArt(false);
+    setIntroText(false);
+    const art = window.setTimeout(() => setIntroArt(true), 90);
+    const text = window.setTimeout(() => setIntroText(true), 720);
     return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchend", onTouchEnd);
+      window.clearTimeout(art);
+      window.clearTimeout(text);
     };
-  }, [slide, goTo]);
-
-  useEffect(() => {
-    setSlide(0);
-    setVisible(true);
-    setDirection("down");
-    locked.current = false;
   }, [resetNonce]);
 
-  const slides = [<Slide1 onSkip={onGetStarted} />, <Slide2 />, <Slide3 />, <Slide4 />, <Slide5 />, <Slide6 onGetStarted={onGetStarted} />];
+  const scrolled = p > 0.02;
+  const showArt = introArt || scrolled;
+  const showOpenText = introText || scrolled;
+
+  const people = span(p, T.people, T.threat);
+  const threat = span(p, T.threat, T.stripPlanters);
+  const shadowT = span(p, T.shadow, T.more);
+  const moreT = span(p, T.more, T.tall);
+  const tallT = span(p, T.tall, T.zoom);
+  const zoomT = span(p, T.zoom, T.map);
+  const mapIn = span(p, T.map, T.layers);
+  const layersIn = span(p, T.layers, T.hands);
+
+  const sceneHome = fade(p, 0, 0, T.people, T.threat) * (showArt ? 1 : 0);
+  const scenePeople = fade(p, T.people, (T.people + T.threat) / 2, T.threat, T.stripPlanters);
+  const peachOn = fade(p, T.threat, T.stripPlanters, T.shadow, T.more) * (showArt ? 1 : 0);
+  const shadowOn = fade(p, T.shadow, T.more, T.map - 0.02, T.map) * (showArt ? 1 : 0);
+  const ground = fade(p, 0, 0, T.threat, T.stripPlanters) * (showArt ? 1 : 0);
+
+  const mintOpen = p < T.map - 0.02;
+  const onScreen1 = p < T.people;
+  const moreGrow = span(moreT, 0, 1);
+  const tallGrow = span(tallT, 0, 1);
+  const skyTop = Math.min(
+    FH,
+    buildingTop(SHADOW_MORE, moreGrow),
+    buildingTop(SHADOW_TALL, tallGrow),
+  );
+  const headlineCover = shadowOn > 0.2 ? coverFade(skyTop, HEADLINE_Y) : 1;
+  const subCover = shadowOn > 0.2 ? coverFade(skyTop, SUB_Y) : 1;
+  const zoomEase = zoomT * zoomT;
+  const zoomScale = 1 + zoomEase * 18;
+  const zoomOriginX =
+    ((SHADOW_TALL.x + SHADOW_TALL.w * TALL_ZOOM.x) / FW) * 100;
+  const zoomOriginY =
+    ((SHADOW_TALL.y + SHADOW_TALL.h * TALL_ZOOM.y) / FH) * 100;
+  const inkFill = span(zoomT, 0.28, 0.62);
+
+  const mapActive = p >= T.map - 0.01 && p < T.layers;
+  const mapForce = p > (T.map + T.layers) / 2;
+  const mapStep = useEnterSteps(mapActive, MAP_DELAYS, mapForce);
+  const mapBody = span(p, T.map + 0.04, T.layers - 0.025);
+
+  const layerReveal = span(p, T.layers + 0.02, T.hands - 0.04);
+  const ellipseT = span(p, T.hands, T.action);
+  const isoContent = 1 - span(ellipseT, TOGETHER_ARRIVE_T, TOGETHER_ISO_GONE_T);
+  const handsArt =
+    ellipseT >= TOGETHER_ISO_GONE_T
+      ? span(ellipseT, TOGETHER_ISO_GONE_T, TOGETHER_ISO_GONE_T + 0.08) *
+        (1 - span(ellipseT, TOGETHER_HOLD_T, TOGETHER_HOLD_T + 0.16))
+      : 0;
+  const handsText =
+    ellipseT >= TOGETHER_ISO_GONE_T
+      ? span(ellipseT, TOGETHER_ISO_GONE_T + 0.03, TOGETHER_ISO_GONE_T + 0.1) *
+        (1 - span(ellipseT, TOGETHER_HOLD_T, TOGETHER_HOLD_T + 0.14))
+      : 0;
+  const megaRise = span(ellipseT, TOGETHER_HOLD_T, 1);
+  const megaLanded = megaRise >= 0.995;
+
+  const actionActive = megaLanded;
+  const actionForce = p > 0.96;
+  const actionStep = useEnterSteps(actionActive, ACTION_DELAYS, actionForce);
+
+  const actionHeadline = actionStep >= 1;
+  const actionBody = actionStep >= 2;
+  const actionCta = actionStep >= 3;
+  const ell = ellipseAt(ellipseT);
+  const isoPage = fade(p, T.layers, T.layers + 0.03, T.action, T.action + 0.02);
+  const ellipseMask =
+    p >= T.hands
+      ? {
+          WebkitMaskImage: "url(/landing/ellipse-mint.svg)",
+          maskImage: "url(/landing/ellipse-mint.svg)",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "right bottom",
+          maskPosition: "right bottom",
+          WebkitMaskSize: `${(ell.w / FW) * 100}% auto`,
+          maskSize: `${(ell.w / FW) * 100}% auto`,
+        }
+      : undefined;
+  const alignVisuals = useRef(() => {});
+
+  useLayoutEffect(() => {
+    if (layersIn <= 0) return;
+    const textCol = textColRef.current;
+    const visCol = visualColRef.current;
+    if (!textCol || !visCol) return;
+
+    const align = () => {
+      const textColRect = textCol.getBoundingClientRect();
+      const visColRect = visCol.getBoundingClientRect();
+      const stackW = visColRect.width * 0.5;
+      const next = LAYERS.map((layer, i) => {
+        const textEl = textRefs.current[i];
+        if (!textEl) return 0;
+        const visEl = visualRefs.current[i];
+        const visH =
+          visEl?.offsetHeight || stackW * layer.width * (layer.img.h / layer.img.w);
+        const textCenter = textColRect.top + textEl.offsetTop + textEl.offsetHeight / 2;
+        return textCenter - visColRect.top - visH / 2;
+      });
+      setVisualTops((prev) => (prev.every((v, i) => Math.abs(v - next[i]) < 0.5) ? prev : next));
+    };
+
+    alignVisuals.current = align;
+    align();
+    const ro = new ResizeObserver(align);
+    ro.observe(textCol);
+    ro.observe(visCol);
+    window.addEventListener("resize", align);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", align);
+    };
+  }, [layersIn]);
+
+  const skipToExplore = useCallback(() => onGetStarted?.(), [onGetStarted]);
+
+  const openHeadline = showOpenText && threat < 0.45;
+  const extraBody = people > 0.18 && threat < 0.45;
+  const threatGone = (1 - span(tallGrow, 0.7, 0.98)) * (1 - span(zoomT, 0, 0.1)) * (1 - inkFill);
+  const threatCopy = threat >= 0.45 && p < T.zoom && headlineCover * threatGone > 0.02;
+  const threatSubOp =
+    shadowT > 0.12 && p < T.zoom
+      ? span(shadowT, 0.12, 0.5) * subCover * (1 - span(moreGrow, 0.55, 0.9)) * threatGone
+      : 0;
 
   return (
-    <div className="w-full h-dvh overflow-hidden relative"
-      style={{ backgroundColor: theme.bg, fontFamily: "Inter, sans-serif", overscrollBehavior: "none" }}>
-
-      {/* Slide content */}
-      <div className="w-full h-full" style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : direction === "down" ? "translateY(-20px)" : "translateY(20px)",
-        transition: visible
-          ? "opacity 0.62s cubic-bezier(0.16,1,0.3,1), transform 0.62s cubic-bezier(0.16,1,0.3,1)"
-          : "opacity 0.28s cubic-bezier(0.7,0,0.84,0), transform 0.28s cubic-bezier(0.7,0,0.84,0)",
-      }}>
-        {slides[slide]}
-      </div>
-
-      {/* Progress bar — right side only */}
-      <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col gap-2.5 z-50">
-        {Array.from({ length: TOTAL }).map((_, i) => (
-          <button key={i} onClick={() => goTo(i, i > slide ? "down" : "up")}
+    <div
+      ref={scrollRef}
+      className="landing-story relative h-dvh overflow-y-auto overscroll-none"
+      style={{ background: mintOpen ? MINT : GREEN, fontFamily: "Inter, sans-serif" }}
+    >
+      <div className="relative" style={{ height: `${STORY_VH}vh` }}>
+        <div className="sticky top-0 h-dvh overflow-hidden">
+          <div
+            className="absolute inset-0 transition-colors duration-500"
             style={{
-              width: i === slide ? "6px" : "4px",
-              height: i === slide ? "28px" : "12px",
-              borderRadius: "3px",
-              background: i === slide ? theme.indicatorActive : theme.indicatorBg,
-              border: "none", cursor: "pointer", padding: 0,
-              transition: "all 0.3s ease",
-            }} />
-        ))}
-      </div>
+              background: mapIn > 0.12 ? GREEN : inkFill > 0.92 ? SHADOW_INK : MINT,
+            }}
+          />
 
-      {/* Scroll hint — bottom right, slide 0 only */}
-      {slide === 0 && (
-        <div className="absolute bottom-8 right-20 flex flex-col items-center gap-2 z-50 pointer-events-none"
-          style={{ opacity: 0.4 }}>
-          <span className="text-xs tracking-[0.18em] uppercase"
-            style={{ color: theme.text, fontFamily: "Inter, sans-serif" }}>
-            Scroll
-          </span>
-          <div className="w-px h-8 overflow-hidden relative" style={{ background: theme.indicatorBg }}>
-            <div className="absolute w-full" style={{
-              height: "50%", background: theme.accent,
-              animation: "scrollDot 1.6s ease-in-out infinite",
-            }} />
-          </div>
+          {ground > 0.01 && (
+            <div
+              className="absolute left-0 right-0 bottom-0 z-0 pointer-events-none"
+              style={{
+                opacity: ground,
+                height: `${(GROUND_H / FH) * 100}%`,
+                background: GREEN,
+              }}
+            />
+          )}
+
+          <GardenArt src="/landing/art-garden.png" opacity={sceneHome} />
+          <GardenArt src="/landing/art-garden-people.png" opacity={scenePeople} />
+
+          {(peachOn > 0.01 || shadowOn > 0.01) && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                transform: `scale(${zoomScale})`,
+                transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
+              }}
+            >
+              {peachOn > 0.01 && (
+                <img
+                  src="/landing/art-skyline.png"
+                  alt=""
+                  className="absolute right-0 bottom-0 z-[2] select-none"
+                  style={{
+                    opacity: peachOn,
+                    width: `${(PEACH_ART.w / FW) * 100}%`,
+                    height: `${(PEACH_ART.h / FH) * 100}%`,
+                    objectFit: "contain",
+                    objectPosition: "right bottom",
+                  }}
+                />
+              )}
+              {shadowOn > 0.01 && (
+                <img
+                  src="/landing/art-buildings.png"
+                  alt=""
+                  className="absolute bottom-0 z-[2] select-none"
+                  style={{
+                    opacity: shadowOn,
+                    right: `${(-SHADOW_NUDGE / FW) * 100}%`,
+                    width: `${(PEACH_ART.w / FW) * 100}%`,
+                    height: `${(PEACH_ART.h / FH) * 100}%`,
+                    objectFit: "cover",
+                    objectPosition: "left bottom",
+                  }}
+                />
+              )}
+              <GrowingBuilding
+                src={SHADOW_MORE.src}
+                box={SHADOW_MORE}
+                grow={moreGrow}
+                z={3}
+                opacity={shadowOn}
+              />
+              <GrowingBuilding
+                src={SHADOW_TALL.src}
+                box={SHADOW_TALL}
+                grow={tallGrow}
+                z={1}
+                opacity={shadowOn}
+              />
+            </div>
+          )}
+
+          {inkFill > 0 && mapIn < 0.25 && (
+            <div
+              className="absolute inset-0 pointer-events-none z-[8]"
+              style={{
+                background: SHADOW_INK,
+                opacity: inkFill * (1 - mapIn),
+              }}
+            />
+          )}
+
+          {mapIn > 0 && p < T.layers + 0.06 && (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: GREEN,
+                opacity: fade(p, T.map, T.map + 0.03, T.layers, T.layers + 0.04),
+              }}
+            >
+              <div
+                className="absolute inset-0 flex flex-col lg:flex-row lg:items-center gap-8 px-6 sm:px-12 lg:px-16 pt-20 lg:pt-0"
+                style={{ opacity: mapStep >= 1 ? 1 : 0, transition: "opacity 480ms ease" }}
+              >
+                <div className="lg:w-[42%] shrink-0">
+                  <h2
+                    className="font-medium tracking-[-0.05em] text-[#f5f5f5] leading-[1.05]"
+                    style={{ fontSize: H1 }}
+                  >
+                    That’s why we built Rooted NYC:
+                  </h2>
+                  <p
+                    className="mt-6 font-medium tracking-[-0.05em] text-[#f5f5f5] leading-[1.45] max-w-md"
+                    style={{
+                      fontSize: H2,
+                      opacity: mapBody,
+                    }}
+                  >
+                    to make that resilience visible by measuring 4 conditions that help each garden endure.
+                  </p>
+                </div>
+                <div
+                  className="relative flex-1 min-h-0"
+                  style={{
+                    opacity: mapStep >= 2 ? 1 : 0,
+                    transform: mapStep >= 2 ? "translateY(0)" : "translateY(28px)",
+                    transition: "opacity 560ms ease, transform 560ms ease",
+                  }}
+                >
+                  <img
+                    src="/landing/map-mockup.png"
+                    alt="Rooted NYC explore map"
+                    className="w-full h-auto max-h-[72vh] object-cover object-left rounded-[30px] border-[3px] border-[#414141] shadow-[0_24px_48px_rgba(0,0,0,0.28)]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {p >= T.hands && (
+            <div
+              className="absolute inset-0"
+              style={{ background: GREEN }}
+            />
+          )}
+
+          {isoPage > 0.01 && (
+            <div
+              className="absolute inset-0 z-[1]"
+              style={{ background: MINT, opacity: isoPage, ...ellipseMask }}
+            >
+              {isoContent > 0.01 && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ opacity: isoContent }}
+                >
+                <div className="flex flex-row items-stretch gap-6 lg:gap-8 px-4">
+                  <div
+                    ref={textColRef}
+                    className="relative flex flex-col justify-center gap-7 lg:gap-9 shrink-0"
+                  >
+                    {LAYERS.map((layer, i) => {
+                      const fromBottom = 3 - i;
+                      const shown = layerReveal >= (fromBottom + 0.15) / 4;
+                      const dim = hoverLayer !== null && hoverLayer !== i;
+                      return (
+                        <button
+                          key={layer.title}
+                          ref={(el) => {
+                            textRefs.current[i] = el;
+                          }}
+                          type="button"
+                          className="text-left transition-opacity duration-200"
+                          style={{
+                            opacity: shown ? (dim ? 0.28 : 1) : 0,
+                            transform: shown ? "translateY(0)" : "translateY(18px)",
+                            transition: "opacity 420ms ease, transform 420ms ease",
+                          }}
+                          onMouseEnter={() => setHoverLayer(i)}
+                          onMouseLeave={() => setHoverLayer(null)}
+                        >
+                          <p
+                            className="font-medium tracking-[-0.05em] text-[#3f3f3f] leading-[1.05] lg:whitespace-nowrap"
+                            style={{ fontSize: "clamp(1.85rem, 4vw, 3.75rem)" }}
+                          >
+                            {layer.title}
+                          </p>
+                          <p
+                            className="mt-1 font-medium tracking-[-0.05em] text-[#3f3f3f] leading-[1.4]"
+                            style={{ fontSize: H2 }}
+                          >
+                            {layer.body}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div
+                    ref={visualColRef}
+                    className="relative w-[min(34vw,460px)] shrink-0"
+                  >
+                    {LAYERS.map((layer, i) => {
+                      const fromBottom = 3 - i;
+                      const shown = layerReveal >= (fromBottom + 0.15) / 4;
+                      const dim = hoverLayer !== null && hoverLayer !== i;
+                      return (
+                        <button
+                          key={layer.title}
+                          ref={(el) => {
+                            visualRefs.current[i] = el;
+                          }}
+                          type="button"
+                          className="absolute bg-transparent p-0 border-0 cursor-pointer overflow-visible"
+                          style={{
+                            top: visualTops[i] ?? 0,
+                            left: `${((1 - layer.width) / 2) * 100}%`,
+                            width: `${layer.width * 100}%`,
+                            zIndex: layer.z,
+                            opacity: shown ? (dim ? 0.28 : 1) : 0,
+                            transform: shown ? "translateY(0)" : "translateY(18px)",
+                            transition: "opacity 420ms ease, transform 420ms ease",
+                          }}
+                          onMouseEnter={() => setHoverLayer(i)}
+                          onMouseLeave={() => setHoverLayer(null)}
+                          aria-label={layer.title}
+                        >
+                          <img
+                            src={layer.src}
+                            alt=""
+                            className="block w-full h-auto pointer-events-none select-none"
+                            onLoad={() => alignVisuals.current()}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              )}
+              {handsArt > 0 && (
+                <img
+                  src="/landing/art-hands.png"
+                  alt=""
+                  className="absolute pointer-events-none select-none max-w-none"
+                  style={{
+                    opacity: handsArt,
+                    left: `${(HANDS_BOX.x / FW) * 100}%`,
+                    top: `${(HANDS_BOX.y / FH) * 100}%`,
+                    width: `${(HANDS_BOX.w / FW) * 100}%`,
+                    height: `${(HANDS_BOX.h / FH) * 100}%`,
+                    objectFit: "contain",
+                    objectPosition: "left top",
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {p >= T.hands && (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-[2]">
+              <div
+                className="absolute left-6 sm:left-16 top-16 sm:top-24 max-w-4xl z-10"
+                style={{
+                  opacity: handsText * (1 - span(p, T.action - 0.04, T.action)),
+                }}
+              >
+                <h2
+                  className="font-medium tracking-[-0.05em] text-[#f5f5f5] leading-[1.05]"
+                  style={{ fontSize: H1 }}
+                >
+                  Together, these dimensions shape a garden’s resilience.
+                </h2>
+              </div>
+            </div>
+          )}
+
+          {p >= T.hands && megaRise > 0 && (
+            <img
+              src="/landing/art-megaphone.png"
+              alt=""
+              className="absolute left-0 right-0 w-full object-cover object-right-bottom pointer-events-none select-none z-[15] max-w-none"
+              style={{
+                height: `${100 + megaRise * 5}%`,
+                bottom: `${-megaRise * 5}%`,
+                top: "auto",
+                transform: `translate(${(1 - megaRise) * -110}%, ${(1 - megaRise) * -110}%)`,
+              }}
+            />
+          )}
+
+          {megaLanded && (
+            <>
+              <h2
+                className="absolute z-20 font-medium tracking-[-0.05em] text-[#3f3f3f] leading-[1.05]"
+                style={{
+                  left: `${(96 / FW) * 100}%`,
+                  top: `${(123 / FH) * 100}%`,
+                  width: `${(738 / FW) * 100}%`,
+                  fontSize: H1,
+                  opacity: actionHeadline ? 1 : 0,
+                  transition: "opacity 480ms ease",
+                }}
+              >
+                Score only matters if it leads to action.
+              </h2>
+              <div
+                className="absolute z-20"
+                style={{
+                  left: `${(96 / FW) * 100}%`,
+                  bottom: `${((FH - 970 - 42) / FH) * 100}%`,
+                  width: `${(738 / FW) * 100}%`,
+                }}
+              >
+                <p
+                  className="font-medium tracking-[-0.05em] text-[#f3f3f3] leading-[1.45] max-w-md"
+                  style={{
+                    fontSize: H2,
+                    opacity: actionBody ? 1 : 0,
+                    transition: "opacity 480ms ease",
+                  }}
+                >
+                  Every one of us can help protect NYC’s community gardens, and we’ll show you where to start.
+                </p>
+                <div
+                  style={{
+                    opacity: actionCta ? 1 : 0,
+                    pointerEvents: actionCta ? "auto" : "none",
+                    transition: "opacity 480ms ease",
+                  }}
+                >
+                  <BrutalistButton
+                    className="mt-6 px-6 py-2 text-[20px]"
+                    onClick={skipToExplore}
+                  >
+                    I’m ready!
+                  </BrutalistButton>
+                </div>
+              </div>
+            </>
+          )}
+
+          {mintOpen && (
+            <div className="absolute left-6 sm:left-[8%] top-[12%] sm:top-[15%] z-20 max-w-[48rem] pr-4">
+              {openHeadline && (
+                <div
+                  style={{
+                    opacity: showOpenText ? 1 : 0,
+                    transform: showOpenText ? "translateY(0)" : "translateY(12px)",
+                    transition: "opacity 560ms ease, transform 560ms ease",
+                  }}
+                >
+                  <h1
+                    className="font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.05]"
+                    style={{ fontSize: H1 }}
+                  >
+                    NYC is home
+                    <br />
+                    to 600+ community gardens
+                  </h1>
+                  <p
+                    className="mt-4 font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.4]"
+                    style={{ fontSize: H2 }}
+                  >
+                    that grow more than food—
+                  </p>
+                </div>
+              )}
+              {extraBody && (
+                <p
+                  className="mt-10 font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.4] max-w-lg"
+                  style={{ fontSize: H2 }}
+                >
+                  they create green space, community, and a living record of neighborhood history
+                </p>
+              )}
+            </div>
+          )}
+
+          {threatCopy && (
+            <h2
+              className="absolute z-[6] font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.05]"
+              style={{
+                left: `${(155 / FW) * 100}%`,
+                top: `${(HEADLINE_Y / FH) * 100}%`,
+                width: `${(1434 / FW) * 100}%`,
+                fontSize: H1,
+                opacity: headlineCover * threatGone,
+              }}
+            >
+              Yet gardens have been fighting to stay{" "}
+              <span className="underline decoration-[3px] underline-offset-[6px]">rooted</span>{" "}
+              for decades
+            </h2>
+          )}
+          {threatSubOp > 0.02 && (
+            <p
+              className="absolute z-[6] font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.4]"
+              style={{
+                left: `${(155 / FW) * 100}%`,
+                top: `${(SUB_Y / FH) * 100}%`,
+                width: `${(581 / FW) * 100}%`,
+                fontSize: H2,
+                opacity: threatSubOp,
+              }}
+            >
+              with hundreds of threats from development, displacement, and changing land priorities.
+            </p>
+          )}
+
+          {onScreen1 && (
+            <BrutalistButton
+              className="absolute top-4 right-4 sm:top-8 sm:right-8 z-30 px-4 py-2 text-[0.95rem]"
+              onClick={skipToExplore}
+            >
+              Skip
+            </BrutalistButton>
+          )}
         </div>
-      )}
-
-      <style>{`
-        @keyframes scrollDot {
-          0%   { top: -50%; }
-          100% { top: 150%; }
-        }
-      `}</style>
+      </div>
     </div>
   );
 }

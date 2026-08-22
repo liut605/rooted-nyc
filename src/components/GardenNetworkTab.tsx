@@ -112,11 +112,16 @@ export const GardenNetworkTab = forwardRef<
         }
 
         const size = map.getSize();
-        const padTop = 108;
-        const padRight = 24;
-        const padBottom = Math.min(360, Math.max(250, size.y * 0.42));
-        const rightSlot = Math.min(420, Math.max(260, size.x * 0.32));
-        const padLeft = Math.max(48, size.x - padRight - rightSlot);
+        const compact = size.x < 900;
+        const padTop = compact ? 88 : 108;
+        const padRight = compact ? 16 : 24;
+        const padBottom = compact
+          ? Math.min(340, Math.max(240, size.y * 0.52))
+          : Math.min(360, Math.max(250, size.y * 0.42));
+        const rightSlot = compact
+          ? Math.min(size.x - 32, size.x * 0.92)
+          : Math.min(420, Math.max(260, size.x * 0.32));
+        const padLeft = compact ? 16 : Math.max(48, size.x - padRight - rightSlot);
         const innerW = size.x - padLeft - padRight;
         const innerH = size.y - padTop - padBottom;
         map.flyToBounds(bounds, {

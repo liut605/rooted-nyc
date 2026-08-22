@@ -14,6 +14,7 @@ import {
   isElizabethStreetGarden,
   lotBoundsForGarden,
 } from "../data/gardenPlanOverlays";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 type ExplorerGarden = Garden & { resilience: GardenResilienceScore };
 
@@ -155,6 +156,7 @@ export const GardenProfileOverlay: React.FC<{
   const [hoveredBullet, setHoveredBullet] = useState<number | null>(null);
   const [selectedBullet, setSelectedBullet] = useState<number | null>(null);
   const [lightbox, setLightbox] = useState<Lightbox | null>(null);
+  const compact = useMediaQuery("(max-width: 1023px)");
 
   const images = useMemo(
     () => profileImages(garden, visuals),
@@ -204,7 +206,7 @@ export const GardenProfileOverlay: React.FC<{
       <GardenLotCard map={map || null} garden={garden} />
 
       {images.length > 0 && (
-        <div className="absolute left-6 top-[96px] z-[1200] w-[360px] pointer-events-none">
+        <div className="hidden lg:block absolute left-6 top-[96px] z-[1200] w-[360px] pointer-events-none">
           {images[1] && (
             <ImageCard
               image={images[1]}
@@ -223,14 +225,22 @@ export const GardenProfileOverlay: React.FC<{
       )}
 
       <div
-        className={`absolute right-6 bottom-28 z-[1200] flex items-end justify-end pointer-events-none isolate ${
-          flipped ? "gap-[87px]" : ""
+        className={`absolute z-[1200] flex pointer-events-none isolate ${
+          compact
+            ? "left-3 right-3 bottom-[calc(76px+env(safe-area-inset-bottom))] flex-col items-stretch gap-3 max-h-[min(58dvh,520px)] overflow-y-auto"
+            : `right-6 bottom-28 items-end justify-end ${flipped ? "gap-[87px]" : ""}`
         }`}
       >
         {activeSpec && (
-          <div className="relative size-[226px] shrink-0 pointer-events-auto">
+          <div className={`relative shrink-0 pointer-events-auto ${compact ? "w-full" : "size-[226px]"}`}>
             {activeBullet && (
-              <div className="absolute right-[calc(100%+20px)] bottom-0 w-[min(460px,calc(100vw-46rem))] flex flex-wrap-reverse justify-end gap-x-5 gap-y-6 pointer-events-none">
+              <div
+                className={
+                  compact
+                    ? "relative w-full flex flex-wrap justify-center gap-3 mb-3 pointer-events-none"
+                    : "absolute right-[calc(100%+20px)] bottom-0 w-[min(460px,calc(100vw-46rem))] flex flex-wrap-reverse justify-end gap-x-5 gap-y-6 pointer-events-none"
+                }
+              >
                 {actionCards[1] && (
                   <PinnedNote
                     tone="action"
@@ -306,11 +316,12 @@ export const GardenProfileOverlay: React.FC<{
               onHoverBullet={setHoveredBullet}
               onSelectBullet={setSelectedBullet}
               onFocus={() => setLightbox({ kind: "score" })}
+              compact={compact}
             />
           </div>
         )}
 
-        <div className="flex items-end">
+        <div className={compact ? "grid grid-cols-2 gap-2 sm:gap-3" : "flex items-end"}>
           {remainingCards.map((card, index) => {
             const score = breakdown[card.key];
             const percent = categoryPercent(score, card.max);
@@ -318,11 +329,17 @@ export const GardenProfileOverlay: React.FC<{
             return (
               <div
                 key={card.id}
-                className="relative shrink-0 size-[226px] pointer-events-auto"
-                style={{
-                  zIndex: z,
-                  marginRight: index === remainingCards.length - 1 ? 0 : -180,
-                }}
+                className={`relative shrink-0 pointer-events-auto ${
+                  compact ? "w-full min-h-[132px] sm:min-h-[160px]" : "size-[226px]"
+                }`}
+                style={
+                  compact
+                    ? undefined
+                    : {
+                        zIndex: z,
+                        marginRight: index === remainingCards.length - 1 ? 0 : -180,
+                      }
+                }
                 onMouseEnter={() => setHovered(card.id)}
                 onMouseLeave={() =>
                   setHovered((current) =>
@@ -334,13 +351,15 @@ export const GardenProfileOverlay: React.FC<{
                   type="button"
                   aria-label={`${card.label} ${percent} percent`}
                   onClick={() => setFlipped(card.id)}
-                  className="relative size-full cursor-pointer rounded-[15px] bg-[#d8f6e7] border border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] flex flex-col gap-2 items-center justify-center p-4"
+                  className="relative size-full cursor-pointer rounded-[15px] bg-[#d8f6e7] border border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] flex flex-col gap-1 sm:gap-2 items-center justify-center p-2 sm:p-4"
                 >
-                  <div className="flex items-center justify-between w-full text-[15px] font-medium text-black tracking-[-0.05em] whitespace-nowrap">
+                  <div className={`flex items-center justify-between w-full font-medium text-black tracking-[-0.05em] ${compact ? "text-[12px] sm:text-[14px] flex-wrap gap-x-1" : "text-[15px] whitespace-nowrap"}`}>
                     <p>{card.label}</p>
                     <p>{percent}%</p>
                   </div>
-                  <ScoreViz spec={card} score={score} />
+                  <div className={compact ? "scale-[0.62] sm:scale-75 origin-center -my-4" : ""}>
+                    <ScoreViz spec={card} score={score} />
+                  </div>
                 </button>
               </div>
             );
@@ -350,7 +369,7 @@ export const GardenProfileOverlay: React.FC<{
 
       {lightbox && (
         <div
-          className="fixed inset-0 z-[3000] bg-black/45 backdrop-blur-[6px] flex items-center justify-center p-8"
+          className="fixed inset-0 z-[3000] bg-black/45 backdrop-blur-[6px] flex items-center justify-center p-4 sm:p-8"
           onClick={closeLightbox}
         >
           <button
@@ -407,6 +426,7 @@ function FlippedScoreCard({
   onSelectBullet,
   onFocus,
   focused = false,
+  compact = false,
 }: {
   spec: ScoreCardSpec;
   bullets: EvidenceBullet[];
@@ -416,6 +436,7 @@ function FlippedScoreCard({
   onSelectBullet: (index: number) => void;
   onFocus?: () => void;
   focused?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div
@@ -437,7 +458,9 @@ function FlippedScoreCard({
       className={`relative rounded-[15px] bg-[#d8f6e7] border-2 border-black shadow-[4px_4px_0_0_#3f3f3f] cursor-pointer ${
         focused
           ? "w-[min(92vw,480px)] min-h-[min(82vh,520px)] p-6 brightness-[0.97]"
-          : "size-[226px] p-[11px]"
+          : compact
+            ? "w-full min-h-[200px] p-3"
+            : "size-[226px] p-[11px]"
       }`}
     >
       <img
@@ -522,7 +545,7 @@ function PinnedNote({
       className={`${className || "relative"} text-left ${
         focused
           ? "w-[min(92vw,480px)] pointer-events-auto"
-          : "w-[219px] pointer-events-auto cursor-pointer"
+          : "w-[min(219px,calc(50vw-1.25rem))] pointer-events-auto cursor-pointer"
       }`}
     >
       <img
@@ -536,7 +559,7 @@ function PinnedNote({
         className={`${background} border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] ${
           focused
             ? "mt-4 min-h-[min(70vh,480px)] rounded-[20px] px-8 pt-8 pb-6 brightness-[0.97]"
-            : "mt-3 size-[219px] rounded-[20px] px-5 pt-5 pb-4 overflow-hidden"
+            : "mt-3 aspect-square w-full max-w-[219px] rounded-[20px] px-5 pt-5 pb-4 overflow-hidden"
         }`}
       >
         <p

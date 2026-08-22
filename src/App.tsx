@@ -48,7 +48,7 @@ export default function App() {
             if (id === "landing") setLandingKey((key) => key + 1);
             setActiveTab(id);
           }}
-          className={`px-3.5 py-1.5 font-medium text-[16px] md:text-[18px] tracking-[-0.05em] whitespace-nowrap transition-colors duration-[120ms] ${radius} ${
+          className={`px-2.5 sm:px-3.5 py-1.5 font-medium text-[14px] sm:text-[16px] md:text-[18px] tracking-[-0.05em] whitespace-nowrap transition-colors duration-[120ms] ${radius} ${
             active
               ? "bg-[#306a4e] text-[#f3f3f3]"
               : "text-[#3f3f3f] hover:bg-[#ede8f7] active:bg-[#d8f6e7]"
@@ -68,7 +68,7 @@ export default function App() {
   return (
     <div
       className={`min-h-screen text-[#3f3f3f] font-[Inter,sans-serif] antialiased ${
-        activeTab === "landing" ? "bg-[#14291E]" : "bg-[#fbf7ff]"
+        activeTab === "landing" ? "bg-[#f4fff4]" : "bg-[#fbf7ff]"
       }`}
     >
       {activeTab === "landing" ? (
@@ -81,7 +81,7 @@ export default function App() {
       )}
 
       {activeTab !== "landing" && (
-        <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] flex items-stretch font-[Inter,sans-serif]">
+        <nav className="fixed bottom-[max(12px,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[2000] bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] flex items-stretch font-[Inter,sans-serif] max-w-[calc(100vw-16px)]">
           {navItem("explorer", "Explore", "first")}
           {navItem("learn", "Learn", "middle")}
           {navItem("actions", "Act", "middle")}

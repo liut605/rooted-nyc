@@ -104,11 +104,11 @@ export const ReportModal: React.FC<{
 
   return (
     <div
-      className="fixed inset-0 z-[3000] flex items-center justify-center px-4 py-8 bg-[#3f3f3f]/40"
+      className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center px-3 sm:px-4 py-4 sm:py-8 bg-[#3f3f3f]/40"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[520px] max-h-[90vh] overflow-y-auto bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[20px] shadow-[6px_6px_0_0_#3f3f3f] font-[Inter,sans-serif] text-[#3f3f3f]"
+        className="w-full max-w-[520px] max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-bottom)-12px))] overflow-y-auto bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[20px] shadow-[6px_6px_0_0_#3f3f3f] font-[Inter,sans-serif] text-[#3f3f3f]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"

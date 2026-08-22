@@ -10,6 +10,21 @@
   bottom: 88px;
 }
 
+@media (max-width: 767px) {
+  .leaflet-bottom.leaflet-right {
+    bottom: 80px;
+    right: 8px;
+    max-width: calc(100vw - 96px);
+    font-size: 10px;
+  }
+
+  .leaflet-control-attribution {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .leaflet-marker-icon.garden-pin {
   background: transparent !important;
   border: none !important;
@@ -50,4 +65,22 @@
 
 .nb-bright:hover {
   filter: brightness(1.08);
+}
+
+.landing-story {
+  scrollbar-width: thin;
+  scrollbar-color: #306a4e transparent;
+}
+
+.landing-story::-webkit-scrollbar {
+  width: 4px;
+}
+
+.landing-story::-webkit-scrollbar-thumb {
+  background: #306a4e;
+  border-radius: 99px;
+}
+
+.landing-story::-webkit-scrollbar-track {
+  background: transparent;
 }

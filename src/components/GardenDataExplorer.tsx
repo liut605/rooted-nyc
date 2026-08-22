@@ -15,6 +15,7 @@ import {
   loadEnrichedGardens,
 } from "../services/loadGardens";
 import { getGardenVisualsForClient } from "../services/gardenVisualsClient";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 type ExplorerGarden = Garden & { resilience: GardenResilienceScore };
 
@@ -47,6 +48,7 @@ export const GardenDataExplorer: React.FC<{
   const [mapReady, setMapReady] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const compact = useMediaQuery("(max-width: 1023px)");
   const cardGarden = profileOpen ? null : (hoveredGarden ?? previewGarden);
 
   const clearHoverHideTimer = () => {
@@ -158,9 +160,9 @@ export const GardenDataExplorer: React.FC<{
   }, [profileOpen, previewGarden, reportOpen]);
 
   const controlClass =
-    "pointer-events-auto border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] font-[Inter,sans-serif] font-medium text-[18px] md:text-[20px] tracking-[-0.05em]";
+    "pointer-events-auto border-2 border-[#3f3f3f] shadow-[4px_4px_0_0_#3f3f3f] font-[Inter,sans-serif] font-medium text-[15px] sm:text-[18px] md:text-[20px] tracking-[-0.05em]";
   const creamControl = `${controlClass} bg-[#fbf7ff] text-[#3f3f3f]`;
-  const filterTrigger = "px-6 py-2 min-w-[180px]";
+  const filterTrigger = "px-3 sm:px-6 py-2 min-w-0 w-[calc(50%-0.25rem)] sm:w-auto sm:min-w-[160px] lg:min-w-[180px]";
 
   const searchValue =
     profileOpen && previewGarden
@@ -211,20 +213,20 @@ export const GardenDataExplorer: React.FC<{
       />
 
       <div
-        className={`absolute top-6 left-6 right-6 z-[1100] flex flex-wrap items-center gap-3 pointer-events-none ${
-          profileOpen ? "justify-end" : "justify-between"
+        className={`absolute top-3 sm:top-6 left-3 sm:left-6 right-3 sm:right-6 z-[1100] flex flex-col lg:flex-row lg:flex-wrap items-stretch lg:items-center gap-2 sm:gap-3 pointer-events-none ${
+          profileOpen ? "lg:justify-end" : "lg:justify-between"
         }`}
       >
         {!profileOpen && (
-          <>
-            <div className={`${creamControl} h-[50px] w-[114px] rounded-[15px] shrink-0 flex overflow-hidden`}>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className={`${creamControl} h-[42px] sm:h-[50px] w-[88px] sm:w-[114px] rounded-[15px] shrink-0 flex overflow-hidden`}>
               <button
                 type="button"
                 aria-label="Zoom in"
                 onClick={() => mapRef.current?.zoomIn()}
                 className="flex-1 flex items-center justify-center hover:bg-[#ede8f7] active:bg-[#d8f6e7] transition-colors duration-[120ms]"
               >
-                <svg viewBox="0 0 18 18" className="size-[18px]" fill="none" aria-hidden>
+                <svg viewBox="0 0 18 18" className="size-4 sm:size-[18px]" fill="none" aria-hidden>
                   <path d="M1 9h16M9 1v16" stroke="#3f3f3f" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
@@ -235,7 +237,7 @@ export const GardenDataExplorer: React.FC<{
                 onClick={() => mapRef.current?.zoomOut()}
                 className="flex-1 flex items-center justify-center hover:bg-[#ede8f7] active:bg-[#d8f6e7] transition-colors duration-[120ms]"
               >
-                <svg viewBox="0 0 18 18" className="size-[18px]" fill="none" aria-hidden>
+                <svg viewBox="0 0 18 18" className="size-4 sm:size-[18px]" fill="none" aria-hidden>
                   <path d="M1 9h16" stroke="#3f3f3f" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
@@ -244,16 +246,17 @@ export const GardenDataExplorer: React.FC<{
             <button
               type="button"
               onClick={() => setReportOpen(true)}
-              className={`${creamControl} nb-press rounded-[15px] px-6 py-2 min-w-[280px] text-center`}
+              className={`${creamControl} nb-press rounded-[15px] px-3 sm:px-6 py-2 min-w-0 sm:min-w-[220px] lg:min-w-[280px] text-center flex-1 sm:flex-none`}
             >
-              Know Something We Don’t?
+              <span className="sm:hidden">Report</span>
+              <span className="hidden sm:inline">Know Something We Don’t?</span>
             </button>
 
             <BrutalSelect
               ariaLabel="Resilience levels"
               value={selectedResilience}
               onChange={setSelectedResilience}
-              className={`${filterTrigger} text-[18px] md:text-[20px] tracking-[-0.05em]`}
+              className={`${filterTrigger} text-[15px] sm:text-[18px] md:text-[20px] tracking-[-0.05em]`}
               options={[
                 { value: "All", label: "Resilience Levels" },
                 { value: "High Resilience", label: "High Resilience" },
@@ -267,7 +270,7 @@ export const GardenDataExplorer: React.FC<{
               ariaLabel="Boroughs"
               value={selectedBorough}
               onChange={setSelectedBorough}
-              className={`${filterTrigger} text-[18px] md:text-[20px] tracking-[-0.05em]`}
+              className={`${filterTrigger} text-[15px] sm:text-[18px] md:text-[20px] tracking-[-0.05em]`}
               options={[
                 { value: "All", label: "All Boroughs" },
                 { value: "Manhattan", label: "Manhattan" },
@@ -277,12 +280,12 @@ export const GardenDataExplorer: React.FC<{
                 { value: "Staten Island", label: "Staten Island" },
               ]}
             />
-          </>
+          </div>
         )}
 
         <label
-          className={`${controlClass} nb-press nb-bright rounded-[15px] pl-8 pr-8 py-2 flex items-center gap-4 min-w-[280px] flex-1 max-w-[520px] ${
-            profileOpen ? "bg-[#306a4e] text-[#f3f3f3]" : "bg-[#fbf7ff] text-[#3f3f3f]"
+          className={`${controlClass} nb-press nb-bright rounded-[15px] pl-4 sm:pl-8 pr-4 sm:pr-8 py-2 flex items-center gap-3 sm:gap-4 min-w-0 w-full lg:flex-1 lg:max-w-[520px] ${
+            profileOpen ? "bg-[#306a4e] text-[#f3f3f3] lg:ml-auto" : "bg-[#fbf7ff] text-[#3f3f3f]"
           }`}
         >
           <img
@@ -310,12 +313,13 @@ export const GardenDataExplorer: React.FC<{
         </label>
       </div>
 
-      {cardGarden && cardPoint && (
+      {cardGarden && (compact || cardPoint) && (
         <GardenThumbnailCard
           garden={cardGarden}
           imageUrl={previewImage}
-          x={cardPoint.x}
-          y={cardPoint.y}
+          x={cardPoint?.x ?? 0}
+          y={cardPoint?.y ?? 0}
+          docked={compact}
           onMouseEnter={clearHoverHideTimer}
           onMouseLeave={() => {
             clearHoverHideTimer();
@@ -363,6 +367,7 @@ function GardenThumbnailCard({
   imageUrl,
   x,
   y,
+  docked = false,
   onLearnMore,
   onMouseEnter,
   onMouseLeave,
@@ -371,6 +376,7 @@ function GardenThumbnailCard({
   imageUrl: string | null;
   x: number;
   y: number;
+  docked?: boolean;
   onLearnMore: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -379,12 +385,23 @@ function GardenThumbnailCard({
 
   return (
     <div
-      className="absolute z-[1100] w-[270px] -translate-x-1/2 -translate-y-[calc(100%+48px)] bg-[#306a4e] border border-[#3f3f3f] rounded-[15px] p-4 flex flex-col gap-4 pointer-events-auto"
-      style={{ left: x, top: y }}
+      className={
+        docked
+          ? "fixed z-[1100] left-3 right-3 bottom-[calc(72px+env(safe-area-inset-bottom))] w-auto max-w-lg mx-auto bg-[#306a4e] border border-[#3f3f3f] rounded-[15px] p-3 sm:p-4 flex flex-col gap-3 pointer-events-auto"
+          : "absolute z-[1100] w-[min(270px,calc(100vw-24px))] -translate-x-1/2 -translate-y-[calc(100%+48px)] bg-[#306a4e] border border-[#3f3f3f] rounded-[15px] p-4 flex flex-col gap-4 pointer-events-auto"
+      }
+      style={
+        docked
+          ? undefined
+          : {
+              left: `clamp(147px, ${x}px, calc(100vw - 147px))`,
+              top: `clamp(210px, ${y}px, calc(100dvh - 160px))`,
+            }
+      }
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="relative h-[119px] w-full overflow-hidden rounded-[12px] border border-[#3f3f3f]">
+      <div className="relative h-[90px] sm:h-[119px] w-full overflow-hidden rounded-[12px] border border-[#3f3f3f]">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -394,7 +411,9 @@ function GardenThumbnailCard({
         ) : (
           <div className="absolute inset-0 bg-[#254f3a]" />
         )}
-        <div className="absolute top-[22px] -right-[36px] w-[246px] rotate-[28deg] bg-[#b32d2d] py-1.5 text-center shadow-[0_4px_2px_rgba(0,0,0,0.4)]">
+        <div className={`absolute top-[22px] -right-[36px] w-[246px] rotate-[28deg] bg-[#b32d2d] py-1.5 text-center shadow-[0_4px_2px_rgba(0,0,0,0.4)] ${
+          docked ? "top-[14px] -right-[48px]" : ""
+        }`}>
           <p className="text-[#f5f5f5] text-[15px] tracking-[-0.05em] whitespace-nowrap">
             {sashLabel(level)}
           </p>
