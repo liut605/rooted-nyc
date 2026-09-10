@@ -283,7 +283,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
     setIntroArt(false);
     setIntroText(false);
     const art = window.setTimeout(() => setIntroArt(true), 90);
-    const text = window.setTimeout(() => setIntroText(true), 720);
+    const text = window.setTimeout(() => setIntroText(true), 90);
     return () => {
       window.clearTimeout(art);
       window.clearTimeout(text);
