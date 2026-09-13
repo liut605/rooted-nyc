@@ -310,14 +310,6 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
   const ground = fade(p, 0, 0, T.threat, T.stripPlanters) * (showArt ? 1 : 0);
 
   const mintOpen = p < T.map - 0.02;
-  const storyBg =
-    p >= T.layers && p < T.hands
-      ? MINT
-      : mapIn > 0.12
-        ? GREEN
-        : inkFill > 0.92
-          ? SHADOW_INK
-          : MINT;
   const onScreen1 = p < T.people;
   const moreGrow = span(moreT, 0, 1);
   const tallGrow = span(tallT, 0, 1);
@@ -335,6 +327,14 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
   const zoomOriginY =
     ((SHADOW_TALL.y + SHADOW_TALL.h * TALL_ZOOM.y) / FH) * 100;
   const inkFill = span(zoomT, 0.28, 0.62);
+  const storyBg =
+    p >= T.layers && p < T.hands
+      ? MINT
+      : mapIn > 0.12
+        ? GREEN
+        : inkFill > 0.92
+          ? SHADOW_INK
+          : MINT;
 
   const mapActive = p >= T.map - 0.01 && p < T.layers;
   const mapForce = p > (T.map + T.layers) / 2;
