@@ -224,7 +224,7 @@ function GardenArt({ src, opacity }: { src: string; opacity: number }) {
     <img
       src={src}
       alt=""
-      className="absolute right-0 bottom-0 z-[1] pointer-events-none select-none"
+      className="absolute right-0 bottom-0 z-[2] pointer-events-none select-none"
       style={{
         opacity,
         width: `${(PEACH_ART.w / FW) * 100}%`,
@@ -427,7 +427,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
       <div className="relative" style={{ height: `${STORY_VH}vh` }}>
         <div className="sticky top-0 h-dvh overflow-hidden">
           <div
-            className="absolute inset-0 transition-colors duration-500"
+            className="absolute inset-0 z-0 transition-colors duration-500"
             style={{
               background: mapIn > 0.12 ? GREEN : inkFill > 0.92 ? SHADOW_INK : MINT,
             }}
@@ -435,10 +435,12 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
 
           {ground > 0.01 && (
             <div
-              className="absolute left-0 right-0 bottom-0 z-0 pointer-events-none"
+              className="absolute bottom-0 left-0 z-[1] pointer-events-none"
               style={{
                 opacity: ground,
                 height: `${(GROUND_H / FH) * 100}%`,
+                width: "100vw",
+                maxWidth: "none",
                 background: GREEN,
               }}
             />
