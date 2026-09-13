@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import http from 'http';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { createApiApp } from './src/api/app';
@@ -9,10 +10,15 @@ dotenv.config();
 async function startServer() {
   const app = createApiApp();
   const PORT = Number(process.env.PORT) || 3000;
+  const httpServer = http.createServer(app);
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        allowedHosts: true,
+        hmr: { server: httpServer },
+      },
       appType: 'spa'
     });
     app.use(vite.middlewares);
@@ -25,8 +31,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`NYC Community Gardens Resilience Index API running on http://0.0.0.0:${PORT}`);
+  httpServer.listen(PORT, () => {
+    console.log(`NYC Community Gardens Resilience Index running on http://127.0.0.1:${PORT}`);
   });
 }
 

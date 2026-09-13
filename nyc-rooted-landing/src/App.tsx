@@ -310,6 +310,14 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
   const ground = fade(p, 0, 0, T.threat, T.stripPlanters) * (showArt ? 1 : 0);
 
   const mintOpen = p < T.map - 0.02;
+  const storyBg =
+    p >= T.layers && p < T.hands
+      ? MINT
+      : mapIn > 0.12
+        ? GREEN
+        : inkFill > 0.92
+          ? SHADOW_INK
+          : MINT;
   const onScreen1 = p < T.people;
   const moreGrow = span(moreT, 0, 1);
   const tallGrow = span(tallT, 0, 1);
@@ -421,8 +429,8 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
   return (
     <div
       ref={scrollRef}
-      className="landing-story relative h-dvh overflow-y-auto overscroll-none"
-      style={{ background: mintOpen ? MINT : GREEN, fontFamily: "Inter, sans-serif" }}
+      className="landing-story relative h-dvh overflow-y-auto overflow-x-hidden overscroll-none"
+      style={{ background: storyBg, fontFamily: "Inter, sans-serif" }}
     >
       <div className="relative" style={{ height: `${STORY_VH}vh` }}>
         <div className="sticky top-0 h-dvh overflow-hidden">
@@ -435,12 +443,11 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
 
           {ground > 0.01 && (
             <div
-              className="absolute bottom-0 left-0 z-[1] pointer-events-none"
+              aria-hidden
+              className="absolute inset-x-0 bottom-0 z-[1] pointer-events-none"
               style={{
                 opacity: ground,
                 height: `${(GROUND_H / FH) * 100}%`,
-                width: "100vw",
-                maxWidth: "none",
                 background: GREEN,
               }}
             />

@@ -32,7 +32,11 @@ export function createApiApp() {
       next();
     });
   }
-  app.use(async (_req, _res, next) => {
+  app.use(async (req, _res, next) => {
+    if (!req.path.startsWith('/api')) {
+      next();
+      return;
+    }
     try {
       await Promise.race([
         gardensReady,

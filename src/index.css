@@ -68,19 +68,13 @@
 }
 
 .landing-story {
-  scrollbar-width: thin;
-  scrollbar-color: #306a4e transparent;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .landing-story::-webkit-scrollbar {
-  width: 4px;
-}
-
-.landing-story::-webkit-scrollbar-thumb {
-  background: #306a4e;
-  border-radius: 99px;
-}
-
-.landing-story::-webkit-scrollbar-track {
-  background: transparent;
+  display: none;
+  width: 0;
+  height: 0;
 }
