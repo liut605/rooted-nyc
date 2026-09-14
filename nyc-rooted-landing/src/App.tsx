@@ -27,6 +27,7 @@ const PRELOAD = [
   "/landing/layer-2-water.png",
   "/landing/layer-3-community.png",
   "/landing/layer-4-sun.png",
+  "/landing/art-hands.svg",
   "/landing/ellipse-mint.svg",
 ];
 
@@ -105,7 +106,6 @@ const TALL_ZOOM = { x: 0.68, y: 0.32 };
 const HEADLINE_Y = 169;
 const SUB_Y = 434;
 const GROUND_H = 149;
-const HANDS_BOX = { x: 662, y: 131, w: 1369, h: 1290 };
 const ELLIPSE = { w: 1562, h: 1070 };
 const TOGETHER_S = 0.6;
 const TOGETHER_ARRIVE_T = 0.34;
@@ -791,8 +791,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
         ? 1 - span(ellipseT, TOGETHER_ARRIVE_T, TOGETHER_ISO_GONE_T)
         : 0;
   const handsFade = togetherExit ? 1 - span(exitT, 0, 0.28) : 1;
-  const handsArt =
-    phase === "together" && togetherHold ? 0.85 * handsFade : 0;
+  const handsArt = phase === "together" && togetherHold ? handsFade : 0;
   const handsText =
     phase === "together" && togetherHold ? handsFade : 0;
   const megaRise =
@@ -813,7 +812,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
           : 1
         : 0;
   const ellipseMask =
-    phase === "together" && isoPage > 0.01
+    phase === "together" && (isoPage > 0.01 || handsArt > 0)
       ? {
           WebkitMaskImage: "url(/landing/ellipse-mint.svg)",
           maskImage: "url(/landing/ellipse-mint.svg)",
@@ -1131,22 +1130,27 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                 </div>
               </div>
               )}
-              {handsArt > 0 && (
-                <img
-                  src="/landing/art-hands.png"
-                  alt=""
-                  className="absolute pointer-events-none select-none max-w-none"
-                  style={{
-                    opacity: handsArt,
-                    left: `${(HANDS_BOX.x / FW) * 100}%`,
-                    top: `${(HANDS_BOX.y / FH) * 100}%`,
-                    width: `${(HANDS_BOX.w / FW) * 100}%`,
-                    height: `${(HANDS_BOX.h / FH) * 100}%`,
-                    objectFit: "contain",
-                    objectPosition: "left top",
-                  }}
-                />
-              )}
+            </div>
+          )}
+
+          {handsArt > 0 && (
+            <div
+              className="absolute inset-0 z-[1] pointer-events-none"
+              style={{
+                background: MINT,
+                opacity: handsArt,
+                ...ellipseMask,
+              }}
+            >
+              <img
+                src="/landing/art-hands.svg"
+                alt=""
+                className="absolute top-0 bottom-0 right-0 h-full w-auto max-w-none select-none"
+                style={{
+                  objectFit: "contain",
+                  objectPosition: "right center",
+                }}
+              />
             </div>
           )}
 
