@@ -9,8 +9,11 @@ export interface LandingPageProps {
 const MINT = "#f4fff4";
 const GREEN = "#306a4e";
 
-const MAP_DELAYS = [180, 620] as const;
+const MAP_DELAYS = [120, 480, 860] as const;
 const ACTION_DELAYS = [120, 560, 1040] as const;
+const LAYER_DELAYS = [140, 420, 700, 980] as const;
+const BEAT_MS = 820;
+const HOLD_LOCK_MS = 1000;
 
 const PRELOAD = [
   "/landing/art-garden.png",
@@ -47,6 +50,22 @@ const T = {
   action: 0.91,
 };
 
+/** Discrete early story beats — one gesture = one settled frame (no mid-fade rests). */
+const EARLY_TARGETS = [
+  0,
+  (T.people + T.threat) / 2,
+  T.shadow,
+] as const;
+const EARLY_LAST = EARLY_TARGETS.length - 1;
+
+type Phase = "early" | "distance" | "map" | "layers" | "together" | "action";
+
+const PHASE_PIN: Record<"map" | "layers" | "action", number> = {
+  map: T.map,
+  layers: T.layers,
+  action: T.action,
+};
+
 function clamp(n: number, a = 0, b = 1) {
   return Math.min(b, Math.max(a, n));
 }
@@ -54,13 +73,6 @@ function clamp(n: number, a = 0, b = 1) {
 function span(p: number, a: number, b: number) {
   if (b <= a) return p >= a ? 1 : 0;
   return clamp((p - a) / (b - a));
-}
-
-function fade(p: number, inA: number, inB: number, outA: number, outB: number) {
-  if (p < inA) return 0;
-  if (p < inB) return span(p, inA, inB);
-  if (p < outA) return 1;
-  return 1 - span(p, outA, outB);
 }
 
 function lerp(a: number, b: number, t: number) {
@@ -71,9 +83,23 @@ const FW = 1728;
 const FH = 1117;
 const PEACH_ART = { w: 1265, h: 743 };
 const ALIGN_DX = FW - PEACH_ART.w - 308;
-const SHADOW_NUDGE = 12;
-const SHADOW_MORE = { src: "/landing/art-buildings-more.png", x: 134 + ALIGN_DX + SHADOW_NUDGE, y: 374, w: 304, h: 743 };
-const SHADOW_TALL = { src: "/landing/art-buildings-tall.png", x: 493 + ALIGN_DX + SHADOW_NUDGE, y: 108, w: 434, h: 1009 };
+/** Dark shadow skyline: same anchor as peach art (no x/y nudge). */
+const SHADOW_ART_DX = 0;
+const SHADOW_ART_DY = 0;
+const SHADOW_MORE = {
+  src: "/landing/art-buildings-more.png",
+  x: 134 + ALIGN_DX + SHADOW_ART_DX,
+  y: 374 + SHADOW_ART_DY,
+  w: 304,
+  h: 743,
+};
+const SHADOW_TALL = {
+  src: "/landing/art-buildings-tall.png",
+  x: 493 + ALIGN_DX + SHADOW_ART_DX,
+  y: 108 + SHADOW_ART_DY,
+  w: 434,
+  h: 1009,
+};
 const SHADOW_INK = "#414141";
 const TALL_ZOOM = { x: 0.68, y: 0.32 };
 const HEADLINE_Y = 169;
@@ -85,13 +111,15 @@ const TOGETHER_S = 0.6;
 const TOGETHER_ARRIVE_T = 0.34;
 const TOGETHER_ISO_GONE_T = 0.44;
 const TOGETHER_HOLD_T = 0.64;
+/** Scroll progress where the soft shape sits at its ideal hold size. */
+const HOLD_PROGRESS = T.hands + TOGETHER_HOLD_T * (T.action - T.hands);
 const ELLIPSE_KF = [
   { t: 0, s: 2.05 },
   { t: TOGETHER_ARRIVE_T, s: TOGETHER_S },
   { t: TOGETHER_HOLD_T, s: TOGETHER_S },
   { t: 0.74, s: 0.52 },
   { t: 0.88, s: 0.26 },
-  { t: 1, s: 0.08 },
+  { t: 1, s: 0 },
 ] as const;
 
 function ellipseAt(t: number) {
@@ -219,7 +247,6 @@ function buildingTop(box: { y: number; h: number }, grow: number) {
 }
 
 function GardenArt({ src, opacity }: { src: string; opacity: number }) {
-  if (opacity <= 0.01) return null;
   return (
     <img
       src={src}
@@ -231,6 +258,7 @@ function GardenArt({ src, opacity }: { src: string; opacity: number }) {
         height: `${(PEACH_ART.h / FH) * 100}%`,
         objectFit: "contain",
         objectPosition: "right bottom",
+        transition: "opacity 560ms ease",
       }}
     />
   );
@@ -262,14 +290,248 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
   const [p, setP] = useState(0);
   const [introArt, setIntroArt] = useState(false);
   const [introText, setIntroText] = useState(false);
+  const [earlyStep, setEarlyStep] = useState(0);
+  const [phase, setPhase] = useState<Phase>("early");
+  const [togetherHold, setTogetherHold] = useState(false);
+  const [togetherExit, setTogetherExit] = useState(false);
   const [hoverLayer, setHoverLayer] = useState<number | null>(null);
   const textColRef = useRef<HTMLDivElement>(null);
   const visualColRef = useRef<HTMLDivElement>(null);
   const textRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const visualRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [visualTops, setVisualTops] = useState<number[]>(() => LAYERS.map(() => 0));
+  const phaseRef = useRef<Phase>("early");
+  const earlyStepRef = useRef(0);
+  const togetherHoldRef = useRef(false);
+  const togetherExitRef = useRef(false);
+  const beatLocked = useRef(false);
+  const beatLockMs = useRef(BEAT_MS);
+  const beatReleaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartY = useRef(0);
+  const mapReadyRef = useRef(false);
+  const layersReadyRef = useRef(false);
 
-  useMotionValueEvent(scrollYProgress, "change", (v) => setP(v));
+  phaseRef.current = phase;
+  earlyStepRef.current = earlyStep;
+  togetherHoldRef.current = togetherHold;
+  togetherExitRef.current = togetherExit;
+
+  const maxScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return 0;
+    return Math.max(0, el.scrollHeight - el.clientHeight);
+  }, []);
+
+  const pinProgress = useCallback(
+    (progress: number) => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const max = maxScroll();
+      if (max <= 0) return;
+      el.scrollTop = clamp(progress, 0, 1) * max;
+    },
+    [maxScroll],
+  );
+
+  const scheduleBeatUnlock = useCallback(() => {
+    if (beatReleaseTimer.current) clearTimeout(beatReleaseTimer.current);
+    beatReleaseTimer.current = setTimeout(() => {
+      beatLocked.current = false;
+    }, beatLockMs.current);
+  }, []);
+
+  const lockBeat = useCallback(
+    (ms = BEAT_MS) => {
+      beatLockMs.current = ms;
+      beatLocked.current = true;
+      scheduleBeatUnlock();
+    },
+    [scheduleBeatUnlock],
+  );
+
+  const settleTogetherHold = useCallback(() => {
+    if (togetherHoldRef.current) {
+      if (!togetherExitRef.current) pinProgress(HOLD_PROGRESS);
+      return;
+    }
+    togetherHoldRef.current = true;
+    togetherExitRef.current = false;
+    setTogetherHold(true);
+    setTogetherExit(false);
+    pinProgress(HOLD_PROGRESS);
+    lockBeat(HOLD_LOCK_MS);
+  }, [lockBeat, pinProgress]);
+
+  const beginTogetherExit = useCallback(() => {
+    togetherExitRef.current = true;
+    setTogetherExit(true);
+  }, []);
+
+  const enterPhase = useCallback(
+    (next: Phase, early = 0) => {
+      phaseRef.current = next;
+      setPhase(next);
+      if (next !== "together" && next !== "action") {
+        togetherHoldRef.current = false;
+        togetherExitRef.current = false;
+        setTogetherHold(false);
+        setTogetherExit(false);
+      }
+      if (next === "early") {
+        earlyStepRef.current = early;
+        setEarlyStep(early);
+        pinProgress(EARLY_TARGETS[clamp(early, 0, EARLY_LAST)]);
+      } else if (next === "distance") {
+        pinProgress(T.more);
+      } else if (next === "together") {
+        togetherHoldRef.current = false;
+        togetherExitRef.current = false;
+        setTogetherHold(false);
+        setTogetherExit(false);
+        pinProgress(T.hands);
+      } else {
+        pinProgress(PHASE_PIN[next]);
+      }
+    },
+    [pinProgress],
+  );
+
+  const advanceStory = useCallback(
+    (dir: 1 | -1) => {
+      const current = phaseRef.current;
+      if (beatLocked.current) {
+        scheduleBeatUnlock();
+        return;
+      }
+
+      if (current === "early") {
+        const cur = earlyStepRef.current;
+        if (dir > 0 && cur >= EARLY_LAST) {
+          lockBeat();
+          enterPhase("distance");
+          return;
+        }
+        const next = clamp(cur + dir, 0, EARLY_LAST);
+        if (next === cur) return;
+        lockBeat();
+        earlyStepRef.current = next;
+        setEarlyStep(next);
+        pinProgress(EARLY_TARGETS[next]);
+        return;
+      }
+
+      if (current === "distance") {
+        if (dir < 0) {
+          lockBeat();
+          enterPhase("early", EARLY_LAST);
+        }
+        return;
+      }
+
+      if (current === "map") {
+        if (dir > 0 && !mapReadyRef.current) {
+          lockBeat();
+          return;
+        }
+        lockBeat();
+        if (dir > 0) enterPhase("layers");
+        else enterPhase("distance");
+        return;
+      }
+
+      if (current === "layers") {
+        if (dir > 0 && !layersReadyRef.current) {
+          lockBeat();
+          return;
+        }
+        lockBeat();
+        if (dir > 0) enterPhase("together");
+        else enterPhase("map");
+        return;
+      }
+
+      if (current === "together") {
+        if (dir < 0) {
+          if (togetherExitRef.current) {
+            lockBeat();
+            togetherExitRef.current = false;
+            setTogetherExit(false);
+            pinProgress(HOLD_PROGRESS);
+            return;
+          }
+          if (togetherHoldRef.current) {
+            lockBeat();
+            togetherHoldRef.current = false;
+            setTogetherHold(false);
+            pinProgress(Math.max(T.hands, HOLD_PROGRESS - 0.04));
+            return;
+          }
+          lockBeat();
+          enterPhase("layers");
+          return;
+        }
+        if (!togetherHoldRef.current) return;
+        if (!togetherExitRef.current) {
+          beginTogetherExit();
+          pinProgress(Math.min(1, HOLD_PROGRESS + 0.012));
+          return;
+        }
+        return;
+      }
+
+      if (current === "action" && dir < 0) {
+        lockBeat();
+        phaseRef.current = "together";
+        setPhase("together");
+        togetherHoldRef.current = true;
+        togetherExitRef.current = false;
+        setTogetherHold(true);
+        setTogetherExit(false);
+        pinProgress(HOLD_PROGRESS);
+        lockBeat(HOLD_LOCK_MS);
+      }
+    },
+    [beginTogetherExit, enterPhase, lockBeat, pinProgress, scheduleBeatUnlock],
+  );
+
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    setP(v);
+    if (phaseRef.current === "distance") {
+      if (v >= T.map - 0.004) {
+        enterPhase("map");
+        return;
+      }
+      if (v <= EARLY_TARGETS[EARLY_LAST] + 0.01) {
+        enterPhase("early", EARLY_LAST);
+      }
+      return;
+    }
+    if (phaseRef.current === "together") {
+      if (togetherExitRef.current) {
+        if (v >= T.action - 0.008) {
+          enterPhase("action");
+          return;
+        }
+        if (v <= HOLD_PROGRESS + 0.004) {
+          togetherExitRef.current = false;
+          setTogetherExit(false);
+          pinProgress(HOLD_PROGRESS);
+        }
+        return;
+      }
+      if (togetherHoldRef.current) {
+        pinProgress(HOLD_PROGRESS);
+        return;
+      }
+      if (v >= HOLD_PROGRESS - 0.002) {
+        settleTogetherHold();
+        return;
+      }
+      if (v < T.hands - 0.01) {
+        enterPhase("layers");
+      }
+    }
+  });
 
   useEffect(() => {
     PRELOAD.forEach((src) => {
@@ -282,6 +544,15 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
     scrollRef.current?.scrollTo({ top: 0 });
     setIntroArt(false);
     setIntroText(false);
+    setEarlyStep(0);
+    setPhase("early");
+    setTogetherHold(false);
+    setTogetherExit(false);
+    earlyStepRef.current = 0;
+    phaseRef.current = "early";
+    togetherHoldRef.current = false;
+    togetherExitRef.current = false;
+    beatLocked.current = false;
     const art = window.setTimeout(() => setIntroArt(true), 90);
     const text = window.setTimeout(() => setIntroText(true), 90);
     return () => {
@@ -290,27 +561,188 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
     };
   }, [resetNonce]);
 
-  const scrolled = p > 0.02;
-  const showArt = introArt || scrolled;
-  const showOpenText = introText || scrolled;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
 
-  const people = span(p, T.people, T.threat);
-  const threat = span(p, T.threat, T.stripPlanters);
-  const shadowT = span(p, T.shadow, T.more);
-  const moreT = span(p, T.more, T.tall);
-  const tallT = span(p, T.tall, T.zoom);
-  const zoomT = span(p, T.zoom, T.map);
-  const mapIn = span(p, T.map, T.layers);
-  const layersIn = span(p, T.layers, T.hands);
+    const onWheel = (e: WheelEvent) => {
+      const current = phaseRef.current;
+      if (current === "together" && togetherHoldRef.current && !togetherExitRef.current) {
+        e.preventDefault();
+        if (beatLocked.current) {
+          scheduleBeatUnlock();
+          return;
+        }
+        if (e.deltaY > 8) advanceStory(1);
+        else if (e.deltaY < -8) advanceStory(-1);
+        return;
+      }
+      if (current === "distance" || current === "together") {
+        if (
+          current === "distance" &&
+          e.deltaY < -8 &&
+          el.scrollTop <= maxScroll() * (T.more + 0.01)
+        ) {
+          e.preventDefault();
+          advanceStory(-1);
+        }
+        if (
+          current === "together" &&
+          togetherExitRef.current &&
+          e.deltaY < -8 &&
+          el.scrollTop <= maxScroll() * (HOLD_PROGRESS + 0.012)
+        ) {
+          e.preventDefault();
+          advanceStory(-1);
+        }
+        if (
+          current === "together" &&
+          !togetherHoldRef.current &&
+          e.deltaY < -8 &&
+          el.scrollTop <= maxScroll() * (T.hands + 0.012)
+        ) {
+          e.preventDefault();
+          advanceStory(-1);
+        }
+        return;
+      }
+      e.preventDefault();
+      if (e.deltaY > 8) advanceStory(1);
+      else if (e.deltaY < -8) advanceStory(-1);
+    };
 
-  const sceneHome = fade(p, 0, 0, T.people, T.threat) * (showArt ? 1 : 0);
-  const scenePeople = fade(p, T.people, (T.people + T.threat) / 2, T.threat, T.stripPlanters);
-  const peachOn = fade(p, T.threat, T.stripPlanters, T.shadow, T.more) * (showArt ? 1 : 0);
-  const shadowOn = fade(p, T.shadow, T.more, T.map - 0.02, T.map) * (showArt ? 1 : 0);
-  const ground = fade(p, 0, 0, T.threat, T.stripPlanters) * (showArt ? 1 : 0);
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0]?.clientY ?? 0;
+    };
 
-  const mintOpen = p < T.map - 0.02;
-  const onScreen1 = p < T.people;
+    const onTouchEnd = (e: TouchEvent) => {
+      const current = phaseRef.current;
+      const endY = e.changedTouches[0]?.clientY ?? touchStartY.current;
+      const delta = touchStartY.current - endY;
+      if (Math.abs(delta) < 40) return;
+      if (current === "together" && togetherHoldRef.current && !togetherExitRef.current) {
+        e.preventDefault();
+        if (beatLocked.current) {
+          scheduleBeatUnlock();
+          return;
+        }
+        advanceStory(delta > 0 ? 1 : -1);
+        return;
+      }
+      if (current === "distance" || current === "together") {
+        if (
+          current === "distance" &&
+          delta < 0 &&
+          el.scrollTop <= maxScroll() * (T.more + 0.01)
+        ) {
+          e.preventDefault();
+          advanceStory(-1);
+        }
+        if (
+          current === "together" &&
+          togetherExitRef.current &&
+          delta < 0 &&
+          el.scrollTop <= maxScroll() * (HOLD_PROGRESS + 0.012)
+        ) {
+          e.preventDefault();
+          advanceStory(-1);
+        }
+        if (
+          current === "together" &&
+          !togetherHoldRef.current &&
+          delta < 0 &&
+          el.scrollTop <= maxScroll() * (T.hands + 0.012)
+        ) {
+          e.preventDefault();
+          advanceStory(-1);
+        }
+        return;
+      }
+      e.preventDefault();
+      advanceStory(delta > 0 ? 1 : -1);
+    };
+
+    const onScroll = () => {
+      const current = phaseRef.current;
+      if (current === "early") {
+        pinProgress(EARLY_TARGETS[earlyStepRef.current]);
+        return;
+      }
+      if (current === "distance") return;
+      if (current === "together") {
+        if (togetherHoldRef.current && !togetherExitRef.current) {
+          pinProgress(HOLD_PROGRESS);
+          return;
+        }
+        if (togetherExitRef.current) return;
+        if (el.scrollTop >= maxScroll() * (HOLD_PROGRESS - 0.001)) {
+          settleTogetherHold();
+        }
+        return;
+      }
+      pinProgress(PHASE_PIN[current]);
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: false });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("scroll", onScroll);
+      if (beatReleaseTimer.current) clearTimeout(beatReleaseTimer.current);
+    };
+  }, [advanceStory, maxScroll, pinProgress, scheduleBeatUnlock, settleTogetherHold]);
+
+  useEffect(() => {
+    if (phase === "early") pinProgress(EARLY_TARGETS[earlyStep]);
+    else if (phase === "distance") {
+      /* free scroll */
+    } else if (phase === "together") {
+      if (togetherHold && !togetherExit) pinProgress(HOLD_PROGRESS);
+    } else pinProgress(PHASE_PIN[phase]);
+  }, [phase, earlyStep, togetherHold, togetherExit, pinProgress]);
+
+  const inEarly = phase === "early";
+  const showArt = introArt || earlyStep > 0 || phase !== "early";
+  const showOpenText = introText || earlyStep > 0 || phase !== "early";
+
+  const mapActive = phase === "map";
+  const mapStep = useEnterSteps(mapActive, MAP_DELAYS, false);
+  const mapReady = mapStep >= MAP_DELAYS.length;
+  const mapBody = mapStep >= 2 ? 1 : 0;
+
+  const layersActive = phase === "layers";
+  const layerStep = useEnterSteps(layersActive, LAYER_DELAYS, false);
+  const layersReady = layerStep >= LAYER_DELAYS.length;
+
+  mapReadyRef.current = mapReady;
+  layersReadyRef.current = layersReady;
+
+  const moreT = phase === "distance" ? span(p, T.more, T.tall) : phase === "early" ? 0 : 1;
+  const tallT = phase === "distance" ? span(p, T.tall, T.zoom) : phase === "early" ? 0 : 1;
+  const zoomT =
+    phase === "distance" ? span(p, T.zoom, T.map) : phase === "early" ? 0 : 1;
+  const mapIn = phase === "map" ? 1 : 0;
+  const layersIn = phase === "layers" || phase === "together" ? 1 : 0;
+
+  const sceneHome = inEarly && earlyStep === 0 && showArt ? 1 : 0;
+  const scenePeople = inEarly && earlyStep === 1 ? 1 : 0;
+  const peachOn = inEarly
+    ? earlyStep >= 2
+      ? 1
+      : 0
+    : phase === "distance"
+      ? Math.max(0, 1 - span(p, T.more, T.zoom) * 0.85)
+      : 0;
+  const shadowOn =
+    phase === "early" ? (earlyStep >= 2 ? 1 : 0) : phase === "distance" ? 1 : 0;
+  const ground = inEarly && earlyStep < 2 && showArt ? 1 : 0;
+
+  const mintOpen = phase === "early" || phase === "distance";
+  const onScreen1 = phase === "early" && earlyStep === 0;
   const moreGrow = span(moreT, 0, 1);
   const tallGrow = span(tallT, 0, 1);
   const skyTop = Math.min(
@@ -318,56 +750,70 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
     buildingTop(SHADOW_MORE, moreGrow),
     buildingTop(SHADOW_TALL, tallGrow),
   );
-  const headlineCover = shadowOn > 0.2 ? coverFade(skyTop, HEADLINE_Y) : 1;
-  const subCover = shadowOn > 0.2 ? coverFade(skyTop, SUB_Y) : 1;
+  const headlineCover = shadowOn > 0.2 ? coverFade(skyTop, HEADLINE_Y, 130) : 1;
+  const subCover = shadowOn > 0.2 ? coverFade(skyTop, SUB_Y, 150) : 1;
   const zoomEase = zoomT * zoomT;
   const zoomScale = 1 + zoomEase * 18;
   const zoomOriginX =
     ((SHADOW_TALL.x + SHADOW_TALL.w * TALL_ZOOM.x) / FW) * 100;
   const zoomOriginY =
     ((SHADOW_TALL.y + SHADOW_TALL.h * TALL_ZOOM.y) / FH) * 100;
-  const inkFill = span(zoomT, 0.28, 0.62);
+  const inkFill = phase === "distance" ? span(zoomT, 0.28, 0.62) : 0;
   const storyBg =
-    p >= T.layers && p < T.hands
+    phase === "layers"
       ? MINT
-      : mapIn > 0.12
+      : phase === "map" || phase === "together" || phase === "action"
         ? GREEN
         : inkFill > 0.92
           ? SHADOW_INK
           : MINT;
 
-  const mapActive = p >= T.map - 0.01 && p < T.layers;
-  const mapForce = p > (T.map + T.layers) / 2;
-  const mapStep = useEnterSteps(mapActive, MAP_DELAYS, mapForce);
-  const mapBody = span(p, T.map + 0.04, T.layers - 0.025);
-
-  const layerReveal = span(p, T.layers + 0.02, T.hands - 0.04);
-  const ellipseT = span(p, T.hands, T.action);
-  const isoContent = 1 - span(ellipseT, TOGETHER_ARRIVE_T, TOGETHER_ISO_GONE_T);
+  const exitT =
+    phase === "action"
+      ? 1
+      : phase === "together" && togetherExit
+        ? span(p, HOLD_PROGRESS, T.action)
+        : 0;
+  const ellipseT =
+    phase === "action"
+      ? 1
+      : phase === "together"
+        ? togetherExit
+          ? TOGETHER_HOLD_T + exitT * (1 - TOGETHER_HOLD_T)
+          : togetherHold
+            ? TOGETHER_HOLD_T
+            : span(p, T.hands, HOLD_PROGRESS) * TOGETHER_HOLD_T
+        : 0;
+  const isoContent =
+    phase === "layers"
+      ? 1
+      : phase === "together"
+        ? 1 - span(ellipseT, TOGETHER_ARRIVE_T, TOGETHER_ISO_GONE_T)
+        : 0;
+  const handsFade = togetherExit ? 1 - span(exitT, 0, 0.28) : 1;
   const handsArt =
-    ellipseT >= TOGETHER_ISO_GONE_T
-      ? span(ellipseT, TOGETHER_ISO_GONE_T, TOGETHER_ISO_GONE_T + 0.08) *
-        (1 - span(ellipseT, TOGETHER_HOLD_T, TOGETHER_HOLD_T + 0.16))
-      : 0;
+    phase === "together" && togetherHold ? 0.85 * handsFade : 0;
   const handsText =
-    ellipseT >= TOGETHER_ISO_GONE_T
-      ? span(ellipseT, TOGETHER_ISO_GONE_T + 0.03, TOGETHER_ISO_GONE_T + 0.1) *
-        (1 - span(ellipseT, TOGETHER_HOLD_T, TOGETHER_HOLD_T + 0.14))
-      : 0;
-  const megaRise = span(ellipseT, TOGETHER_HOLD_T, 1);
-  const megaLanded = megaRise >= 0.995;
+    phase === "together" && togetherHold ? handsFade : 0;
+  const megaRise =
+    phase === "action" ? 1 : phase === "together" && togetherExit ? exitT : 0;
+  const megaLanded = phase === "action";
 
-  const actionActive = megaLanded;
-  const actionForce = p > 0.96;
-  const actionStep = useEnterSteps(actionActive, ACTION_DELAYS, actionForce);
-
+  const actionStep = useEnterSteps(phase === "action", ACTION_DELAYS, false);
   const actionHeadline = actionStep >= 1;
   const actionBody = actionStep >= 2;
   const actionCta = actionStep >= 3;
   const ell = ellipseAt(ellipseT);
-  const isoPage = fade(p, T.layers, T.layers + 0.03, T.action, T.action + 0.02);
+  const isoPage =
+    phase === "layers"
+      ? 1
+      : phase === "together"
+        ? togetherExit
+          ? 1 - span(exitT, 0.82, 1)
+          : 1
+        : 0;
   const ellipseMask =
-    p >= T.hands
+    phase === "together" && isoPage > 0.01
       ? {
           WebkitMaskImage: "url(/landing/ellipse-mint.svg)",
           maskImage: "url(/landing/ellipse-mint.svg)",
@@ -417,13 +863,25 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
 
   const skipToExplore = useCallback(() => onGetStarted?.(), [onGetStarted]);
 
-  const openHeadline = showOpenText && threat < 0.45;
-  const extraBody = people > 0.18 && threat < 0.45;
-  const threatGone = (1 - span(tallGrow, 0.7, 0.98)) * (1 - span(zoomT, 0, 0.1)) * (1 - inkFill);
-  const threatCopy = threat >= 0.45 && p < T.zoom && headlineCover * threatGone > 0.02;
-  const threatSubOp =
-    shadowT > 0.12 && p < T.zoom
-      ? span(shadowT, 0.12, 0.5) * subCover * (1 - span(moreGrow, 0.55, 0.9)) * threatGone
+  const openHeadline = showOpenText && (inEarly ? earlyStep < 2 : false);
+  const extraBody = inEarly && earlyStep === 1;
+  const threatCopyOp = inEarly
+    ? earlyStep >= 2
+      ? 1
+      : 0
+    : phase === "distance"
+      ? headlineCover *
+        (1 - span(moreGrow, 0.12, 0.58)) *
+        (1 - span(tallGrow, 0.35, 0.85)) *
+        (1 - span(zoomT, 0, 0.1)) *
+        (1 - inkFill)
+      : 0;
+  const threatSubOp = inEarly
+    ? earlyStep >= 2
+      ? 1
+      : 0
+    : phase === "distance" && p < T.zoom
+      ? Math.max(threatCopyOp, 0) * subCover * (1 - span(moreGrow, 0.05, 0.48))
       : 0;
 
   return (
@@ -437,11 +895,16 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
           <div
             className="absolute inset-0 z-0 transition-colors duration-500"
             style={{
-              background: mapIn > 0.12 ? GREEN : inkFill > 0.92 ? SHADOW_INK : MINT,
+              background:
+                phase === "map" || phase === "together" || phase === "action"
+                  ? GREEN
+                  : inkFill > 0.92
+                    ? SHADOW_INK
+                    : MINT,
             }}
           />
 
-          {ground > 0.01 && (
+          {(inEarly || ground > 0.01) && (
             <div
               aria-hidden
               className="absolute inset-x-0 bottom-0 z-[1] pointer-events-none"
@@ -449,6 +912,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                 opacity: ground,
                 height: `${(GROUND_H / FH) * 100}%`,
                 background: GREEN,
+                transition: "opacity 560ms ease",
               }}
             />
           )}
@@ -456,7 +920,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
           <GardenArt src="/landing/art-garden.png" opacity={sceneHome} />
           <GardenArt src="/landing/art-garden-people.png" opacity={scenePeople} />
 
-          {(peachOn > 0.01 || shadowOn > 0.01) && (
+          {(inEarly || peachOn > 0.01 || shadowOn > 0.01) && (
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -464,35 +928,34 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                 transformOrigin: `${zoomOriginX}% ${zoomOriginY}%`,
               }}
             >
-              {peachOn > 0.01 && (
-                <img
-                  src="/landing/art-skyline.png"
-                  alt=""
-                  className="absolute right-0 bottom-0 z-[2] select-none"
-                  style={{
-                    opacity: peachOn,
-                    width: `${(PEACH_ART.w / FW) * 100}%`,
-                    height: `${(PEACH_ART.h / FH) * 100}%`,
-                    objectFit: "contain",
-                    objectPosition: "right bottom",
-                  }}
-                />
-              )}
-              {shadowOn > 0.01 && (
-                <img
-                  src="/landing/art-buildings.png"
-                  alt=""
-                  className="absolute bottom-0 z-[2] select-none"
-                  style={{
-                    opacity: shadowOn,
-                    right: `${(-SHADOW_NUDGE / FW) * 100}%`,
-                    width: `${(PEACH_ART.w / FW) * 100}%`,
-                    height: `${(PEACH_ART.h / FH) * 100}%`,
-                    objectFit: "cover",
-                    objectPosition: "left bottom",
-                  }}
-                />
-              )}
+              <img
+                src="/landing/art-skyline.png"
+                alt=""
+                className="absolute right-0 bottom-0 z-[2] select-none"
+                style={{
+                  opacity: peachOn,
+                  width: `${(PEACH_ART.w / FW) * 100}%`,
+                  height: `${(PEACH_ART.h / FH) * 100}%`,
+                  objectFit: "contain",
+                  objectPosition: "right bottom",
+                  transition: "opacity 560ms ease",
+                }}
+              />
+              <img
+                src="/landing/art-buildings.png"
+                alt=""
+                className="absolute z-[2] select-none"
+                style={{
+                  opacity: shadowOn,
+                  right: `${(-SHADOW_ART_DX / FW) * 100}%`,
+                  bottom: `${(-SHADOW_ART_DY / FH) * 100}%`,
+                  width: `${(PEACH_ART.w / FW) * 100}%`,
+                  height: `${(PEACH_ART.h / FH) * 100}%`,
+                  objectFit: "contain",
+                  objectPosition: "right bottom",
+                  transition: "opacity 560ms ease",
+                }}
+              />
               <GrowingBuilding
                 src={SHADOW_MORE.src}
                 box={SHADOW_MORE}
@@ -520,12 +983,12 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
             />
           )}
 
-          {mapIn > 0 && p < T.layers + 0.06 && (
+          {phase === "map" && (
             <div
               className="absolute inset-0"
               style={{
                 background: GREEN,
-                opacity: fade(p, T.map, T.map + 0.03, T.layers, T.layers + 0.04),
+                opacity: 1,
               }}
             >
               <div
@@ -544,6 +1007,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                     style={{
                       fontSize: H2,
                       opacity: mapBody,
+                      transition: "opacity 480ms ease",
                     }}
                   >
                     to make that resilience visible by measuring 4 conditions that help each garden endure.
@@ -552,8 +1016,8 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                 <div
                   className="relative flex-1 min-h-0"
                   style={{
-                    opacity: mapStep >= 2 ? 1 : 0,
-                    transform: mapStep >= 2 ? "translateY(0)" : "translateY(28px)",
+                    opacity: mapStep >= 3 ? 1 : 0,
+                    transform: mapStep >= 3 ? "translateY(0)" : "translateY(28px)",
                     transition: "opacity 560ms ease, transform 560ms ease",
                   }}
                 >
@@ -567,7 +1031,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
             </div>
           )}
 
-          {p >= T.hands && (
+          {(phase === "together" || phase === "action") && (
             <div
               className="absolute inset-0"
               style={{ background: GREEN }}
@@ -591,7 +1055,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                   >
                     {LAYERS.map((layer, i) => {
                       const fromBottom = 3 - i;
-                      const shown = layerReveal >= (fromBottom + 0.15) / 4;
+                      const shown = layerStep >= fromBottom + 1;
                       const dim = hoverLayer !== null && hoverLayer !== i;
                       return (
                         <button
@@ -631,7 +1095,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                   >
                     {LAYERS.map((layer, i) => {
                       const fromBottom = 3 - i;
-                      const shown = layerReveal >= (fromBottom + 0.15) / 4;
+                      const shown = layerStep >= fromBottom + 1;
                       const dim = hoverLayer !== null && hoverLayer !== i;
                       return (
                         <button
@@ -686,13 +1150,11 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
             </div>
           )}
 
-          {p >= T.hands && (
+          {phase === "together" && (
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-[2]">
               <div
                 className="absolute left-6 sm:left-16 top-16 sm:top-24 max-w-4xl z-10"
-                style={{
-                  opacity: handsText * (1 - span(p, T.action - 0.04, T.action)),
-                }}
+                style={{ opacity: handsText }}
               >
                 <h2
                   className="font-medium tracking-[-0.05em] text-[#f5f5f5] leading-[1.05]"
@@ -704,7 +1166,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
             </div>
           )}
 
-          {p >= T.hands && megaRise > 0 && (
+          {(phase === "together" || phase === "action") && megaRise > 0 && (
             <img
               src="/landing/art-megaphone.png"
               alt=""
@@ -798,7 +1260,12 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
               {extraBody && (
                 <p
                   className="mt-10 font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.4] max-w-lg"
-                  style={{ fontSize: H2 }}
+                  style={{
+                    fontSize: H2,
+                    opacity: 1,
+                    transform: "translateY(0)",
+                    transition: "opacity 560ms ease, transform 560ms ease",
+                  }}
                 >
                   they create green space, community, and a living record of neighborhood history
                 </p>
@@ -806,7 +1273,7 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
             </div>
           )}
 
-          {threatCopy && (
+          {(inEarly || phase === "distance") && (
             <h2
               className="absolute z-[6] font-medium tracking-[-0.05em] text-[#2d334a] leading-[1.05]"
               style={{
@@ -814,7 +1281,9 @@ export default function App({ onGetStarted, resetNonce = 0 }: LandingPageProps) 
                 top: `${(HEADLINE_Y / FH) * 100}%`,
                 width: `${(1434 / FW) * 100}%`,
                 fontSize: H1,
-                opacity: headlineCover * threatGone,
+                opacity: threatCopyOp,
+                transition: "opacity 560ms ease",
+                pointerEvents: "none",
               }}
             >
               Yet gardens have been fighting to stay{" "}
