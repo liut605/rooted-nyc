@@ -5,8 +5,28 @@ import LandingPage from "../nyc-rooted-landing/src/App.tsx";
 type Tab = "landing" | "explorer" | "actions" | "learn";
 
 const DEV_ONLY = new Set<Tab>(["learn", "actions"]);
+/** Prototype is designed for laptop+ viewports. */
+const LAPTOP_MIN_WIDTH = 1024;
+const PORTFOLIO_URL = "https://tsingliu.info/";
+
+function useIsLaptopViewport() {
+  const [isLaptop, setIsLaptop] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth >= LAPTOP_MIN_WIDTH,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia(`(min-width: ${LAPTOP_MIN_WIDTH}px)`);
+    const sync = () => setIsLaptop(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  return isLaptop;
+}
 
 export default function App() {
+  const isLaptop = useIsLaptopViewport();
   const [activeTab, setActiveTab] = useState<Tab>("landing");
   const [landingKey, setLandingKey] = useState(0);
   const [openGardenId, setOpenGardenId] = useState<string | null>(null);
@@ -21,6 +41,37 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [devNoticeOpen]);
+
+  if (!isLaptop) {
+    return (
+      <div
+        className="fixed inset-0 z-[5000] flex flex-col items-center justify-center px-6 text-center font-[Inter,sans-serif] antialiased text-[#3f3f3f]"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 80% 10%, #d8f6e7 0%, transparent 55%), radial-gradient(100% 80% at 10% 90%, #ede8f7 0%, transparent 50%), #f4fff4",
+        }}
+      >
+        <p
+          className="font-medium tracking-[-0.05em] text-[#306a4e] leading-none"
+          style={{ fontSize: "clamp(2.4rem, 11vw, 3.6rem)" }}
+        >
+          Rooted NYC
+        </p>
+        <p
+          className="mt-5 max-w-[22rem] font-medium tracking-[-0.04em] leading-[1.35] text-[#3f3f3f]"
+          style={{ fontSize: "clamp(1.05rem, 4.2vw, 1.25rem)" }}
+        >
+          This prototype is for bigger screens only.
+        </p>
+        <a
+          href={PORTFOLIO_URL}
+          className="nb-press mt-8 inline-flex items-center justify-center px-5 py-2.5 bg-[#fbf7ff] border-2 border-[#3f3f3f] rounded-[15px] shadow-[4px_4px_0_0_#3f3f3f] font-medium text-[#3f3f3f] text-[16px] tracking-[-0.03em] no-underline"
+        >
+          Back to portfolio
+        </a>
+      </div>
+    );
+  }
 
   const navItem = (id: Tab, label: string, edge: "first" | "middle" | "last") => {
     const active = activeTab === id;
