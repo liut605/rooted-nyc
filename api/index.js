@@ -2864,7 +2864,11 @@ function createApiApp() {
       next();
     });
   }
-  app2.use(async (_req, _res, next) => {
+  app2.use(async (req, _res, next) => {
+    if (!req.path.startsWith("/api")) {
+      next();
+      return;
+    }
     try {
       await Promise.race([
         gardensReady,

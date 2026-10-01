@@ -149,8 +149,14 @@ export const GardenNetworkTab = forwardRef<
         maxZoom: 20,
       });
 
+      // Basemap keys are public browser credentials; restrict domains in CARTO.
+      const cartoKey = import.meta.env.VITE_CARTO_API_KEY?.trim();
+      const tileUrl =
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" +
+        (cartoKey ? `?key=${encodeURIComponent(cartoKey)}` : "");
+
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        tileUrl,
         {
           attribution:
             '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
